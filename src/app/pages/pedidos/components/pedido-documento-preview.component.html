@@ -1,0 +1,140 @@
+<article class="document-sheet" [class.production-document]="tipoDocumento === 'produccion'">
+    <header class="document-header">
+        <div class="brand-mark" aria-label="Blanco Bride">
+            <span class="brand-script">Blanco</span>
+            <span class="brand-subtitle">BRIDE</span>
+        </div>
+        <div class="document-title">
+            <span>{{ tituloDocumento }}</span>
+            <strong>PEDIDO #{{ pedido.folio }}</strong>
+        </div>
+    </header>
+
+    <section class="document-meta">
+        <div>
+            <span>CLIENTE</span>
+            <strong>{{ pedido.clienteNombre || '—' }}</strong>
+        </div>
+        <div>
+            @if (tipoDocumento === 'produccion') {
+                <span>FECHA DEL PEDIDO</span>
+                <strong>{{ pedido.creadoEn | date: 'dd/MM/yyyy' }}</strong>
+            } @else {
+                <span>FECHA DE EVENTO</span>
+                <strong>{{ pedido.fechaEvento | date: 'dd/MM/yyyy' }}</strong>
+            }
+        </div>
+        <div>
+            <span>TERMINACIÓN</span>
+            <strong>{{ pedido.ubicacion || '—' }}</strong>
+        </div>
+        <div>
+            <span>HOJA</span>
+            <strong>1 DE 1</strong>
+        </div>
+    </section>
+
+    @for (seccion of secciones; track seccion.titulo) {
+        <section class="document-section">
+            <div class="document-section-heading">
+                <h3>{{ seccion.titulo }}</h3>
+                @if (seccion.fecha) {
+                    <span>{{ seccion.fecha | date: 'dd/MM/yyyy' }}</span>
+                }
+            </div>
+            <div class="document-table-wrapper">
+                <table class="document-table">
+                    <thead>
+                        <tr>
+                            <th>Cant.</th>
+                            <th>Artículo</th>
+                            <th>Texto que se borda</th>
+                            <th>Color</th>
+                            <th>Color texto</th>
+                            <th>Talla</th>
+                            <th>Observación</th>
+                            @if (mostrarPrecios) {
+                                <th class="amount-column">Subtotal</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (linea of seccion.lineas; track $index) {
+                            <tr>
+                                <td>{{ linea.cantidad }}</td>
+                                <td>
+                                    <strong>{{ linea.articulo }}</strong>
+                                </td>
+                                <td>{{ linea.textoBordado }}</td>
+                                <td>{{ linea.color }}</td>
+                                <td>{{ linea.colorTexto }}</td>
+                                <td>{{ linea.talla }}</td>
+                                <td>{{ linea.observacion }}</td>
+                                @if (mostrarPrecios) {
+                                    <td class="amount-column">{{ linea.subtotal | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</td>
+                                }
+                            </tr>
+                        } @empty {
+                            <tr>
+                                <td [attr.colspan]="mostrarPrecios ? 8 : 7" class="empty-line">Sin productos capturados</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+
+    <section class="design-details">
+        <div>
+            <span>TIPOGRAFÍA</span>
+            <strong>{{ pedido.tipografia || '—' }}</strong>
+        </div>
+        <div>
+            <span>DUAL</span>
+            <strong>{{ pedido.dualTexto || '—' }}</strong>
+        </div>
+    </section>
+
+    <section class="reference-block">
+        <div class="section-label">IMAGEN DE REFERENCIA</div>
+        @if (referencias.length) {
+            <div class="reference-grid">
+                @for (referencia of referencias; track referencia.nombre) {
+                    <div class="reference-preview" [class.image-reference]="referencia.esImagen">
+                        <i [class]="referencia.esImagen ? 'pi pi-image' : 'pi pi-file'" aria-hidden="true"></i>
+                        <span>{{ referencia.esImagen ? 'Preview de referencia' : 'Archivo de referencia' }}</span>
+                        <small>{{ referencia.nombre }}</small>
+                    </div>
+                }
+            </div>
+        } @else {
+            <div class="reference-placeholder"><i class="pi pi-image" aria-hidden="true"></i><span>Sin imagen de referencia</span></div>
+        }
+    </section>
+
+    @if (mostrarPrecios) {
+        <section class="financial-summary">
+            @if (alcance === 'completo') {
+                <div>
+                    <span>PEDIDO ORIGINAL</span><strong>{{ totalOriginal | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+                </div>
+                <div>
+                    <span>ADICIONALES</span><strong>{{ totalAdicionales | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+                </div>
+            }
+            <div>
+                <span>TOTAL</span><strong>{{ totalDocumento | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+            </div>
+            <div>
+                <span>ANTICIPO</span><strong>{{ pedido.anticipo | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+            </div>
+            <div>
+                <span>LIQUIDACIÓN</span><strong>{{ pedido.restante | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+            </div>
+            <div><span>ENVÍO</span><strong>PENDIENTE</strong></div>
+        </section>
+    }
+
+    <footer class="document-footer">BLANCO BRIDE · Documento visual preparado para revisión</footer>
+</article>

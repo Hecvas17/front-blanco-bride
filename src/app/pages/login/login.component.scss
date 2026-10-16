@@ -1,0 +1,14 @@
+:host { display: block; min-height: 100vh; }
+.login-page { display: grid; place-items: center; min-height: 100vh; padding: 1.5rem; background: var(--surface-ground); }
+.login-card { width: min(100%, 27rem); padding: 2.25rem; border: 1px solid var(--surface-border); border-radius: 1rem; background: var(--surface-card); box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 8%); }
+.login-brand { margin-bottom: 1.5rem; color: var(--primary-color); font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; }
+h1 { margin: 0; color: var(--text-color); font-size: 1.7rem; }
+.login-subtitle { margin: .5rem 0 1.75rem; color: var(--text-color-secondary); }
+form { display: grid; gap: 1.15rem; }
+.field { display: grid; gap: .45rem; }
+label { color: var(--text-color); font-size: .9rem; font-weight: 600; }
+.field input, .field p-password, .field ::ng-deep .p-password, .field ::ng-deep .p-password-input { width: 100%; }
+.field-error { color: var(--red-500); }
+.login-error { display: flex; align-items: center; gap: .5rem; padding: .75rem; border-radius: .5rem; background: color-mix(in srgb, var(--red-500) 10%, transparent); color: var(--red-500); font-size: .9rem; }
+button { width: 100%; }
+@media (max-width: 480px) { .login-card { padding: 1.5rem; } }

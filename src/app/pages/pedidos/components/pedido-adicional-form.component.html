@@ -1,0 +1,82 @@
+<div class="additional-form">
+    <div class="additional-context">
+        <span class="eyebrow">NUEVO ADICIONAL</span>
+        <h2>{{ adicional ? adicional.folio : pedido.folio }}</h2>
+        <p><strong>Pedido original:</strong> {{ pedido.folio }} · <strong>Cliente:</strong> {{ pedido.clienteNombre }}</p>
+        <small>Creado: {{ adicional?.creadoEn || pedido.creadoEn | date: 'dd/MM/yyyy' }}</small>
+    </div>
+    <div class="additional-heading">
+        <h3>Productos del adicional</h3>
+        <p-button label="Agregar producto" icon="pi pi-plus" [outlined]="true" (onClick)="agregarProducto()"></p-button>
+    </div>
+    <div class="additional-products">
+        @for (producto of productos.controls; track producto; let i = $index) {
+            <article class="additional-product" [formGroup]="producto">
+                <div class="additional-product-header">
+                    <h4>{{ nombreTipo(producto.get('tipo')?.value) }}</h4>
+                    <button type="button" class="icon-button danger" (click)="eliminarProducto(i)" aria-label="Eliminar producto"><i class="pi pi-trash"></i></button>
+                </div>
+                <div class="additional-fields">
+                    <div class="field">
+                        <label>Producto</label
+                        ><select pInputText formControlName="tipo">
+                            @for (tipo of tipos; track tipo.tipo) {
+                                <option [value]="tipo.tipo">{{ tipo.nombre }}</option>
+                            }
+                        </select>
+                    </div>
+                    @if (producto.get('tipo')?.value === 'bata_encaje') {
+                        <div class="field">
+                            <label>Tipo de encaje <span>*</span></label
+                            ><select pInputText formControlName="tipoEncajeId">
+                                @for (tipo of tiposEncaje | async; track tipo.id) {
+                                    <option [value]="tipo.id">{{ tipo.nombre }}</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    <div class="field">
+                        <label>Cantidad <span>*</span></label
+                        ><p-inputnumber formControlName="cantidad" [min]="1" [showButtons]="true"></p-inputnumber>
+                    </div>
+                    <div class="field">
+                        <label>Color</label
+                        ><select pInputText formControlName="colorProductoId">
+                            <option value="">Sin especificar</option>
+                            @for (color of colores | async; track color.id) {
+                                <option [value]="color.id">{{ color.nombre }}</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Talla</label
+                        ><select pInputText formControlName="tallaId">
+                            <option value="">Sin especificar</option>
+                            @for (talla of tallas | async; track talla.id) {
+                                <option [value]="talla.id">{{ talla.nombre }}</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Precio <span>*</span></label
+                        ><p-inputnumber formControlName="precio" mode="currency" currency="MXN" locale="es-MX" [min]="0"></p-inputnumber>
+                    </div>
+                    <div class="field">
+                        <label>Proveedor <span>*</span></label
+                        ><select pInputText formControlName="proveedorId">
+                            @for (proveedor of proveedores | async; track proveedor.id) {
+                                <option [value]="proveedor.id">{{ proveedor.nombre }}</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field field-wide"><label>Observaciones</label><textarea pInputText formControlName="observaciones" rows="2"></textarea></div>
+                </div>
+            </article>
+        }
+    </div>
+    <div class="field"><label>Observaciones generales del adicional</label><textarea pInputText formControlName="observaciones" rows="2"></textarea></div>
+    <div class="additional-total">
+        <span>Total adicional</span><strong>{{ total() | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+    </div>
+    <div class="dialog-actions"><p-button label="Cancelar" severity="secondary" [text]="true" (onClick)="cancelar.emit()"></p-button><p-button label="Guardar adicional" icon="pi pi-check" (onClick)="guardar()"></p-button></div>
+</div>

@@ -1,0 +1,43 @@
+<div class="dashboard-page">
+    <div class="dashboard-header">
+        <div>
+            <h1>Inicio</h1>
+            <p>Resumen operativo de pedidos y entregas</p>
+        </div>
+        <div class="quick-actions">
+            <a pButton routerLink="/formulario" label="Nuevo pedido" icon="pi pi-plus"></a>
+            <a pButton routerLink="/pedidos" label="Ver pedidos" icon="pi pi-list" severity="secondary"></a>
+        </div>
+    </div>
+
+    @if (loading()) {
+        <div class="kpi-grid">@for (item of [1, 2, 3, 4]; track item) { <div class="card"><p-skeleton width="8rem" height="1rem"></p-skeleton><p-skeleton width="4rem" height="2rem" styleClass="mt-3"></p-skeleton></div> }</div>
+        <div class="dashboard-grid"><div class="card"><p-skeleton height="14rem"></p-skeleton></div><div class="card"><p-skeleton height="14rem"></p-skeleton></div></div>
+    } @else if (error(); as message) {
+        <div class="card error-state"><i class="pi pi-exclamation-triangle"></i><h2>No se pudo cargar el resumen</h2><p>{{ message }}</p><button pButton type="button" label="Reintentar" icon="pi pi-refresh" (click)="cargar()"></button></div>
+    } @else {
+        <div class="kpi-grid">
+            <div class="card kpi-card"><span>Pedidos abiertos</span><strong>{{ pedidosAbiertos() }}</strong><i class="pi pi-shopping-bag"></i></div>
+            <div class="card kpi-card"><span>Urgentes &lt;10 días</span><strong>{{ urgentes() }}</strong><i class="pi pi-exclamation-circle"></i></div>
+            <div class="card kpi-card"><span>Batas de encaje pendientes</span><strong>{{ batasPendientes() }}</strong><i class="pi pi-clock"></i></div>
+            <div class="card kpi-card"><span>Pedidos listos</span><strong>{{ pedidosListos() }}</strong><i class="pi pi-check-circle"></i></div>
+        </div>
+
+        <div class="dashboard-grid">
+            <section class="card dashboard-section">
+                <div class="section-heading"><div><h2>Próximos eventos</h2><p>Pedidos activos con fecha próxima</p></div><a routerLink="/pedidos">Ver todos</a></div>
+                @if (proximosEventos().length) { <div class="dashboard-list">@for (pedido of proximosEventos(); track pedido.id) { <a class="dashboard-row" [routerLink]="['/pedidos', pedido.id]"><div><strong>{{ pedido.folio }}</strong><span>{{ pedido.clienteNombre }}</span></div><div class="row-meta"><span>{{ fechaCalendario(pedido.fechaEvento) | date:'dd/MM/yyyy' }}</span><p-tag [value]="urgencia(pedido).texto" [severity]="urgencia(pedido).severity"></p-tag><p-tag [value]="etiquetaEstatus(pedido.estatus)" [severity]="severidadEstatus(pedido.estatus)"></p-tag></div></a>}</div> } @else { <p class="empty-state">No hay eventos próximos.</p> }
+            </section>
+
+            <section class="card dashboard-section">
+                <div class="section-heading"><div><h2>Batas de encaje por atender</h2><p>Solicitadas o recibidas</p></div><a routerLink="/batas-encaje">Ver todas</a></div>
+                @if (batasPorAtender().length) { <div class="dashboard-list">@for (bata of batasPorAtender(); track bata.id) { <a class="dashboard-row" [routerLink]="['/pedidos', bata.pedidoId]"><div><strong>{{ bata.pedidoFolio }}</strong><span>{{ bata.clienteNombre || 'Cliente no disponible' }}</span><small>{{ etiquetaBata(bata) }}</small></div><div class="row-meta"><span>{{ fechaCalendario(bata.fechaEvento) | date:'dd/MM/yyyy' }}</span><p-tag [value]="etiquetaEstatusBata(bata.estatusEncaje)" [severity]="bata.estatusEncaje === 'solicitada' ? 'danger' : 'warn'"></p-tag></div></a>}</div> } @else { <p class="empty-state">No hay batas pendientes.</p> }
+            </section>
+        </div>
+
+        <section class="card dashboard-section recent-section">
+            <div class="section-heading"><div><h2>Pedidos recientes</h2><p>Últimos pedidos registrados</p></div><a routerLink="/pedidos">Ver todos</a></div>
+            @if (pedidosRecientes().length) { <div class="recent-table">@for (pedido of pedidosRecientes(); track pedido.id) { <a class="recent-row" [routerLink]="['/pedidos', pedido.id]"><strong>{{ pedido.folio }}</strong><span>{{ pedido.clienteNombre }}</span><span>{{ fechaCreacion(pedido.creadoEn) | date:'dd/MM/yyyy HH:mm' }}</span><span>{{ fechaCalendario(pedido.fechaEvento) | date:'dd/MM/yyyy' }}</span><p-tag [value]="etiquetaEstatus(pedido.estatus)" [severity]="severidadEstatus(pedido.estatus)"></p-tag><strong>{{ (pedido.totalOriginal ?? pedido.total) | currency:'MXN':'symbol':'1.2-2' }}</strong></a>}</div> } @else { <p class="empty-state">No hay pedidos registrados.</p> }
+        </section>
+    }
+</div>

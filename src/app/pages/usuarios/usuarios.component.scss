@@ -1,0 +1,38 @@
+:host { display: block; }
+.usuarios-page { max-width: 1500px; margin: 0 auto; }
+.page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.page-heading h1 { margin: .3rem 0 0; font-size: 2rem; }
+.page-heading p { margin: .35rem 0 0; color: var(--text-color-secondary); }
+.filter-card, .table-card { margin-bottom: 1rem; padding: 1.1rem; border: 1px solid var(--surface-border); border-radius: var(--content-border-radius); background: var(--surface-card); }
+.filter-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.input-icon { position: relative; display: block; flex: 0 1 clamp(20rem, 34vw, 26.25rem); min-width: 20rem; }
+.input-icon i { position: absolute; z-index: 1; top: 50%; left: .75rem; color: var(--text-color-secondary); transform: translateY(-50%); }
+.input-icon input { width: 100%; padding-left: 2.25rem; }
+.filter-row select { width: 10.5rem; flex: 0 0 10.5rem; }
+.table-heading { display: flex; justify-content: space-between; margin-bottom: 1rem; }
+.table-heading h2 { margin: 0; font-size: 1.05rem; }
+.table-heading span { color: var(--text-color-secondary); font-size: .82rem; }
+.actions { white-space: nowrap; }
+.empty-state { padding: 2.5rem; color: var(--text-color-secondary); text-align: center; }
+.empty-state i { display: block; margin-bottom: .5rem; font-size: 1.5rem; }
+.mobile-users { display: none; }
+.user-form { display: grid; gap: 1rem; }
+.field { display: grid; gap: .4rem; }
+.field label { color: var(--text-color-secondary); font-size: .8rem; }
+.field label span { color: var(--red-500); }
+.field input, .field p-password, .field ::ng-deep .p-password, .field ::ng-deep .p-password-input { width: 100%; }
+.field small { color: var(--red-500); }
+.mobile-user-card { display: grid; gap: .35rem; padding: 1rem 0; border-top: 1px solid var(--surface-border); }
+.mobile-user-heading, .mobile-user-actions { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.mobile-user-card > span, .mobile-user-card > small { color: var(--text-color-secondary); }
+.mobile-user-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: .35rem; }
+@media (max-width: 800px) {
+    .page-heading { align-items: flex-start; flex-direction: column; }
+    .filter-row { align-items: stretch; flex-direction: column; }
+    .input-icon { width: 100%; min-width: 0; }
+    .filter-row select { width: 100%; flex-basis: auto; }
+}
+@media (max-width: 640px) {
+    .table-card > .p-datatable { display: none; }
+    .mobile-users { display: block; }
+}

@@ -1,0 +1,88 @@
+:host {
+    display: block;
+}
+.additional-form {
+    display: grid;
+    gap: 1rem;
+}
+.additional-context {
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--surface-border);
+}
+.additional-context h2 {
+    margin: 0.25rem 0;
+}
+.additional-context p,
+.additional-context small {
+    color: var(--text-color-secondary);
+    font-size: 0.82rem;
+}
+.additional-heading,
+.additional-product-header,
+.additional-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.additional-heading h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+.additional-products {
+    display: grid;
+    gap: 0.85rem;
+}
+.additional-product {
+    padding: 0.9rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--content-border-radius);
+    background: var(--surface-ground);
+}
+.additional-product h4 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+.additional-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+}
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.field-wide {
+    grid-column: 1 / -1;
+}
+.field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.field select,
+.field textarea {
+    width: 100%;
+}
+.additional-total {
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--surface-border);
+}
+.additional-total strong {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+}
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+@media (max-width: 700px) {
+    .additional-fields {
+        grid-template-columns: 1fr;
+    }
+    .field-wide {
+        grid-column: auto;
+    }
+}

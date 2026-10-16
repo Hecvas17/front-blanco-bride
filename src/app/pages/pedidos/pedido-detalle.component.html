@@ -1,0 +1,237 @@
+<p-toast></p-toast>
+@if (loading()) {
+    <div class="not-found">
+        <i class="pi pi-spin pi-spinner"></i>
+        <h1>Cargando pedido...</h1>
+        <p>Estamos consultando la información del pedido.</p>
+    </div>
+} @else if (notFound()) {
+    <div class="not-found">
+        <i class="pi pi-search"></i>
+        <h1>Pedido no encontrado</h1>
+        <p>El pedido solicitado no existe.</p>
+        <p-button label="Volver a pedidos" icon="pi pi-arrow-left" routerLink="/pedidos"></p-button>
+    </div>
+} @else if (loadError(); as message) {
+    <div class="not-found">
+        <i class="pi pi-exclamation-triangle"></i>
+        <h1>No se pudo cargar el pedido</h1>
+        <p>{{ message }}</p>
+        <p-button label="Volver a pedidos" icon="pi pi-arrow-left" routerLink="/pedidos"></p-button>
+    </div>
+} @else if (pedido(); as item) {
+    <div class="detalle-page">
+        <a routerLink="/pedidos" class="back-link"><i class="pi pi-arrow-left"></i> Volver a pedidos</a>
+        <header class="detail-heading">
+            <div>
+                <span class="eyebrow">DETALLE DEL PEDIDO</span>
+                <div class="title-line">
+                    <h1>{{ item.folio }}</h1>
+                    <p-tag [value]="formatoEstatus(item.estatus)" [severity]="severidad(item.estatus)"></p-tag>
+                </div>
+                <p>{{ item.clienteNombre }}</p>
+            </div>
+            <div class="detail-actions">
+                <p-button label="Editar pedido" icon="pi pi-pencil" severity="secondary" [outlined]="true" (onClick)="editar()"></p-button
+                ><p-button label="Cambiar estatus" icon="pi pi-sync" severity="secondary" [outlined]="true" (onClick)="cambiarEstatus()"></p-button
+                ><p-button label="Imprimir" icon="pi pi-print" severity="secondary" [text]="true" (onClick)="imprimir()"></p-button>
+            </div>
+        </header>
+        <div class="detail-grid">
+            <main>
+                <section class="detail-card">
+                    <h2>Datos generales</h2>
+                    <div class="data-grid">
+                        <div>
+                            <small>Cliente</small><strong>{{ item.clienteNombre }}</strong>
+                        </div>
+                        <div>
+                            <small>Fecha del evento</small><strong>{{ item.fechaEvento | date: 'dd/MM/yyyy' }}</strong>
+                        </div>
+                        <div>
+                            <small>Ubicación</small><strong>{{ item.ubicacion }}</strong>
+                        </div>
+                        <div>
+                            <small>Tipo de cliente</small><strong>{{ item.tipoCliente }}</strong>
+                        </div>
+                        <div>
+                            <small>Anticipo</small><strong>{{ item.anticipo | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                        </div>
+                        <div>
+                            <small>Fecha de creación</small><strong>{{ item.creadoEn | date: 'dd/MM/yyyy' }}</strong>
+                        </div>
+                    </div>
+                </section>
+                @if (item.productosAdicionales.length) {
+                    <section class="detail-card">
+                        <div class="section-heading"><h2>Productos</h2></div>
+                        <div class="complements-detail">
+                            @for (producto of item.productosAdicionales; track producto.idTemporal) {
+                                <div class="complement-line">
+                                    <span>{{ producto.tipoEncajeNombre ? 'Bata de encaje' : producto.tipo }}</span><span>{{ producto.colorNombre || producto.colorProductoId || '—' }} · {{ producto.tallaNombre || producto.tallaId || '—' }} · {{ producto.tipoEncajeNombre || producto.tipoEncajeId || '—' }}</span
+                                    ><strong>{{ producto.cantidad * producto.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+                <section class="detail-card">
+                    <div class="section-heading">
+                        <div>
+                            <h2>
+                                Adicionales <span>({{ item.adicionales.length }})</span>
+                            </h2>
+                            <p class="muted">Productos agregados después del pedido original.</p>
+                        </div>
+                        <p-button label="Nuevo adicional" icon="pi pi-plus" size="small" (onClick)="nuevoAdicional()"></p-button>
+                    </div>
+                    @if (item.adicionales.length) {
+                        <div class="additional-detail-list">
+                            @for (adicional of item.adicionales; track adicional.id) {
+                                <article>
+                                    <div>
+                                        <strong>{{ adicional.folio }}</strong
+                                        ><small>{{ adicional.creadoEn | date: 'dd/MM/yyyy' }} · {{ adicional.productos.length }} producto(s)</small>
+                                    </div>
+                                    <strong>{{ adicional.total | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                    <p-button label="Editar" icon="pi pi-pencil" severity="secondary" [text]="true" size="small" (onClick)="editarAdicional(adicional)"></p-button>
+                                </article>
+                            }
+                        </div>
+                    } @else {
+                        <p class="muted">Este pedido no tiene adicionales.</p>
+                    }
+                </section>
+                <section class="detail-card">
+                    <div class="section-heading">
+                        <h2>
+                            Personalizaciones <span>({{ item.personalizaciones.length }})</span>
+                        </h2>
+                    </div>
+                    <div class="bata-detail-grid">
+                        @for (bata of item.personalizaciones; track $index; let i = $index) {
+                            <article class="bata-detail">
+                                <div class="bata-detail-heading">
+                                    <div>
+                                        <span class="card-kicker">BATA {{ i + 1 }}</span>
+                                        <h3>{{ bata.tipo === 'infantil' ? 'Bata infantil' : 'Bata adulto' }}</h3>
+                                    </div>
+                                    <strong>{{ bata.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                </div>
+                                <div class="mini-data">
+                                    <div>
+                                        <small>Color</small><strong>{{ bata.color }}</strong>
+                                    </div>
+                                    <div>
+                                        <small>Talla</small><strong>{{ bata.talla }}</strong>
+                                    </div>
+                                    <div>
+                                        <small>Color bordado</small><strong>{{ bata.colorBordado }}</strong>
+                                    </div>
+                                    <div>
+                                        <small>Frontal</small><strong>{{ bata.bordadoFrontal || '—' }}</strong>
+                                    </div>
+                                    <div>
+                                        <small>Posterior</small><strong>{{ bata.bordadoPosterior || '—' }}</strong>
+                                    </div>
+                                </div>
+                                <p class="observation"><i class="pi pi-comment"></i>{{ bata.observaciones || 'Sin observaciones' }}</p>
+                            </article>
+                        }
+                    </div>
+                </section>
+                <section class="detail-card">
+                    <div class="section-heading"><h2>Complementos</h2></div>
+                    @if (item.complementos.length) {
+                        <div class="complements-detail">
+                            @for (complemento of item.complementos; track complemento.nombre) {
+                                <div class="complement-line">
+                                    <span>{{ complemento.nombre }}</span
+                                    ><span>{{ complemento.cantidad }} × {{ complemento.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</span
+                                    ><strong>{{ complemento.cantidad * complemento.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                </div>
+                            }
+                        </div>
+                    } @else {
+                        <p class="muted">Este pedido no tiene complementos.</p>
+                    }
+                </section>
+                <section class="detail-card">
+                    <h2>Diseño y referencias</h2>
+                    <div class="data-grid">
+                        <div>
+                            <small>Tipografía</small><strong>{{ item.tipografia }}</strong>
+                        </div>
+                        <div>
+                            <small>Dual del texto</small><strong>{{ item.dualTexto }}</strong>
+                        </div>
+                    </div>
+                    <div class="reference-list">
+                        @for (referencia of item.referencias; track referencia.nombre) {
+                            <span
+                                ><i class="pi pi-file"></i>{{ referencia.nombre }}<small>{{ referencia.tipo }}</small></span
+                            >
+                        }
+                    </div>
+                </section>
+                <section class="detail-card supplier-tracking">
+                    <div class="section-heading">
+                        <div>
+                            <h2>Seguimiento por proveedor</h2>
+                            <p class="muted">{{ avanceRecibido() }} de {{ totalProductosSeguimiento() }} productos recibidos</p>
+                        </div>
+                    </div>
+                    @for (grupo of seguimientoPorProveedor(); track grupo.proveedor) {
+                        <div class="tracking-group">
+                            <h3>{{ grupo.proveedor }}</h3>
+                            @for (item of grupo.items; track item.nombre + item.index) {
+                                <div class="tracking-item">
+                                    <div>
+                                        <strong>{{ item.nombre }}</strong
+                                        ><small>{{ item.cantidad > 1 ? item.cantidad + ' piezas' : '1 pieza' }} · {{ item.origen }}</small>
+                                    </div>
+                                    <select [value]="item.estatus" [disabled]="item.index < 0" (change)="actualizarSeguimiento(item.tipo, item.index, $any($event.target).value)">
+                                        @for (estatus of estadosProveedor; track estatus) {
+                                            <option [value]="estatus" [selected]="item.estatus === estatus">{{ formatoEstadoProveedor(estatus) }}</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                    } @empty {
+                        <p class="muted">No hay productos con seguimiento.</p>
+                    }
+                </section>
+            </main>
+            <aside class="totals-card">
+                <span class="eyebrow">RESUMEN FINANCIERO</span>
+                <h2>Totales</h2>
+                <div>
+                    <span>Subtotal personalizaciones</span><strong>{{ item.subtotalPersonalizaciones | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                </div>
+                <div>
+                    <span>Subtotal complementos</span><strong>{{ item.subtotalComplementos | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                </div>
+                <div class="total-line">
+                    <span>Total</span><strong>{{ item.total | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                </div>
+                <div>
+                    <span>Anticipo</span><strong>{{ item.anticipo | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                </div>
+                <div class="remaining-line">
+                    <span>Restante</span><strong>{{ item.restante | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                </div>
+            </aside>
+        </div>
+    </div>
+    <p-dialog header="Adicional del pedido" [(visible)]="mostrarAdicionalForm" [modal]="true" [style]="{ width: 'min(960px, 96vw)' }" [draggable]="false" [resizable]="false">
+        <app-pedido-adicional-form [pedido]="item" [adicional]="adicionalEditando" (cancelar)="mostrarAdicionalForm = false" (guardado)="adicionalGuardado()"></app-pedido-adicional-form>
+    </p-dialog>
+} @else {
+    <div class="not-found">
+        <i class="pi pi-search"></i>
+        <h1>Pedido no encontrado</h1>
+        <p>El pedido solicitado no existe en los datos de esta sesión.</p>
+        <p-button label="Volver a pedidos" icon="pi pi-arrow-left" (onClick)="router.navigate(['/pedidos'])"></p-button>
+    </div>
+}

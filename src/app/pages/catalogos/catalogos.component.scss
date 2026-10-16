@@ -1,0 +1,166 @@
+:host {
+    display: block;
+}
+.catalogos-page {
+    max-width: 1500px;
+    margin: 0 auto;
+}
+.page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.page-heading h1 {
+    margin: 0.3rem 0 0;
+    font-size: 2rem;
+}
+.page-heading p {
+    margin: 0.35rem 0 0;
+    color: var(--text-color-secondary);
+}
+.catalog-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+    padding: 0.35rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--content-border-radius);
+    background: var(--surface-card);
+}
+.catalog-tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 0.8rem;
+    border: 0;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+}
+.catalog-tabs button:hover,
+.catalog-tabs button.active {
+    background: var(--primary-color);
+    color: var(--primary-contrast-color);
+}
+.filter-card,
+.table-card {
+    margin-bottom: 1rem;
+    padding: 1.1rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--content-border-radius);
+    background: var(--surface-card);
+}
+.filter-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.filter-row .input-icon {
+    position: relative;
+    display: block;
+    flex: 0 1 clamp(20rem, 34vw, 26.25rem);
+    min-width: 20rem;
+}
+.filter-row .input-icon i {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 0.75rem;
+    color: var(--text-color-secondary);
+    transform: translateY(-50%);
+}
+.filter-row .input-icon input {
+    width: 100%;
+    padding-left: 2.25rem;
+}
+.filter-row select {
+    width: 10.5rem;
+    flex: 0 0 10.5rem;
+}
+.table-heading {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.table-heading h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+.table-heading span {
+    color: var(--text-color-secondary);
+    font-size: 0.82rem;
+}
+.table-card td small {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--text-color-secondary);
+}
+.actions {
+    white-space: nowrap;
+}
+.empty-state {
+    padding: 2.5rem;
+    text-align: center;
+    color: var(--text-color-secondary);
+}
+.empty-state i {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+}
+.catalog-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.field label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--text-color-secondary);
+    font-size: 0.8rem;
+}
+.field input,
+.field p-inputnumber {
+    width: 100%;
+}
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+@media (max-width: 800px) {
+    .page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .catalog-tabs {
+        overflow: auto;
+        flex-wrap: nowrap;
+    }
+    .catalog-tabs button {
+        white-space: nowrap;
+    }
+    .catalog-form {
+        grid-template-columns: 1fr;
+    }
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-row .input-icon {
+        width: 100%;
+        min-width: 0;
+    }
+    .filter-row select {
+        width: 100%;
+        flex-basis: auto;
+    }
+}

@@ -1,0 +1,202 @@
+<p-toast></p-toast>
+
+<div class="encaje-page">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">OPERACIÓN</span>
+            <h1>Batas de encaje</h1>
+            <p>Seguimiento de pedidos y estatus de producción</p>
+        </div>
+    </header>
+
+    <section class="kpi-grid">
+        <article class="kpi-card">
+            <span class="kpi-icon blue"><i class="pi pi-list"></i></span>
+            <div>
+                <small>Total</small><strong>{{ registros().length }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon amber"><i class="pi pi-send"></i></span>
+            <div>
+                <small>Solicitadas</small><strong>{{ contarEstatus('solicitada') }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon orange"><i class="pi pi-inbox"></i></span>
+            <div>
+                <small>Ya llegaron</small><strong>{{ contarEstatus('ya_llego') }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon green"><i class="pi pi-check-circle"></i></span>
+            <div>
+                <small>Listas</small><strong>{{ contarEstatus('lista') }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon red"><i class="pi pi-exclamation-triangle"></i></span>
+            <div>
+                <small>Urgentes</small><strong>{{ urgentes() }}</strong>
+            </div>
+        </article>
+    </section>
+
+    <section class="filter-card">
+        <div class="filter-heading">
+            <div>
+                <h2>Filtros</h2>
+                <span>Encuentra rápidamente una bata de encaje.</span>
+            </div>
+            <p-button label="Limpiar filtros" icon="pi pi-filter-slash" severity="secondary" [text]="true" (onClick)="limpiarFiltros()"></p-button>
+        </div>
+        <div class="filter-grid">
+            <div class="filter-field search-field"><label for="buscarEncaje">Búsqueda general</label><input pInputText id="buscarEncaje" [(ngModel)]="busqueda" (ngModelChange)="aplicarFiltros()" placeholder="Buscar pedido o teléfono" /></div>
+            <div class="filter-field">
+                <label>Tipo de encaje</label><p-select [options]="tiposEncaje()" [(ngModel)]="tipoFiltro" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos" (onChange)="aplicarFiltros()" class="w-full"></p-select>
+            </div>
+            <div class="filter-field">
+                <label>Estatus de bata</label
+                ><p-select [options]="estatusEncaje()" [(ngModel)]="estatusEncajeFiltro" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos" (onChange)="aplicarFiltros()" class="w-full"></p-select>
+            </div>
+            <div class="filter-field">
+                <label>Estatus de pedido</label
+                ><p-select [options]="estatusPedido()" [(ngModel)]="estatusPedidoFiltro" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos" (onChange)="aplicarFiltros()" class="w-full"></p-select>
+            </div>
+            <div class="filter-field">
+                <label>Talla</label><p-select [options]="tallas()" [(ngModel)]="tallaFiltro" optionLabel="nombre" optionValue="nombre" [showClear]="true" placeholder="Todas" (onChange)="aplicarFiltros()" class="w-full"></p-select>
+            </div>
+            <div class="filter-field"><label for="fechaEncaje">Fecha del evento</label><input pInputText id="fechaEncaje" type="date" [(ngModel)]="fechaFiltro" (ngModelChange)="aplicarFiltros()" /></div>
+        </div>
+    </section>
+
+    <section class="table-card">
+        <div class="table-heading">
+            <div>
+                <h2>Batas de encaje</h2>
+                <span>{{ filtrados().length }} registros encontrados</span>
+            </div>
+        </div>
+        <p-table [value]="filtrados()" [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10, 15, 25]" sortField="fechaEvento" [sortOrder]="1" responsiveLayout="scroll" [tableStyle]="{ 'min-width': '78rem' }">
+            <ng-template #header
+                ><tr>
+                    <th pSortableColumn="terminacionTelefono">Terminación <p-sortIcon field="terminacionTelefono"></p-sortIcon></th>
+                    <th pSortableColumn="pedidoFolio">Pedido <p-sortIcon field="pedidoFolio"></p-sortIcon></th>
+                    <th>Origen</th>
+                    <th>Mes</th>
+                    <th>Tipo de encaje</th>
+                    <th>Estatus bata</th>
+                    <th>Estatus pedido</th>
+                    <th pSortableColumn="fechaEvento">Fecha evento <p-sortIcon field="fechaEvento"></p-sortIcon></th>
+                    <th>Faltan</th>
+                    <th pSortableColumn="talla">Talla <p-sortIcon field="talla"></p-sortIcon></th>
+                    <th pSortableColumn="precio">Precio <p-sortIcon field="precio"></p-sortIcon></th>
+                    <th>Acciones</th>
+                </tr></ng-template
+            >
+            <ng-template #body let-registro
+                ><tr>
+                    <td>{{ registro.terminacionTelefono }}</td>
+                    <td>
+                        <a class="folio-link" [routerLink]="['/pedidos', registro.pedidoId]">{{ registro.pedidoFolio }}</a>
+                    </td>
+                    <td><p-tag [value]="registro.adicionalFolio ? registro.adicionalFolio.replace(registro.pedidoFolio + '-', '') : 'Pedido original'" [severity]="registro.adicionalFolio ? 'info' : 'secondary'"></p-tag></td>
+                    <td class="month-cell">{{ mes(registro) }}</td>
+                    <td><p-select [options]="tiposEncaje()" [ngModel]="registro.tipoEncajeId" optionLabel="label" optionValue="value" (onChange)="actualizarTipo(registro, $event.value)" class="inline-select"></p-select></td>
+                    <td><p-select [options]="estatusEncaje()" [ngModel]="registro.estatusEncaje" optionLabel="label" optionValue="value" (onChange)="actualizarEstatusEncaje(registro, $event.value)" class="inline-select"></p-select></td>
+                    <td><p-select [options]="estatusPedido()" [ngModel]="registro.estatusPedido" optionLabel="label" optionValue="value" (onChange)="actualizarEstatusPedido(registro, $event.value)" class="inline-select"></p-select></td>
+                    <td>{{ fechaTexto(registro.fechaEvento) }}</td>
+                    <td><p-tag [value]="urgencia(registro).texto" [severity]="urgencia(registro).severity"></p-tag></td>
+                    <td>{{ etiquetaCatalogo(tallas(), registro.talla) }}</td>
+                    <td class="money">{{ registro.precio | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</td>
+                    <td><p-button icon="pi pi-ellipsis-v" severity="secondary" [text]="true" [rounded]="true" ariaLabel="Acciones de bata" (onClick)="abrirAcciones($event, registro, actionsMenu)"></p-button></td></tr
+            ></ng-template>
+            <ng-template #emptymessage
+                ><tr>
+                    <td colspan="12">
+                        <div class="empty-state">
+                            <i class="pi pi-inbox"></i>
+                            <h3>No encontramos batas de encaje</h3>
+                            <p>Prueba con otros filtros.</p>
+                        </div>
+                    </td>
+                </tr></ng-template
+            >
+        </p-table>
+    </section>
+
+    <div class="mobile-list">
+        @for (registro of filtrados(); track registro.id) {
+            <article class="mobile-card">
+                <div class="mobile-card-heading">
+                    <a class="folio-link" [routerLink]="['/pedidos', registro.pedidoId]">{{ registro.pedidoFolio }}</a
+                    ><p-tag [value]="urgencia(registro).texto" [severity]="urgencia(registro).severity"></p-tag>
+                </div>
+                @if (registro.adicionalFolio) {
+                    <p-tag [value]="registro.adicionalFolio.replace(registro.pedidoFolio + '-', '')" severity="info"></p-tag>
+                }
+                <span class="mobile-phone">Terminación: {{ registro.terminacionTelefono }}</span>
+                <h3>{{ etiquetaTipo(registro.tipoEncajeId) }}</h3>
+                <div class="mobile-statuses">
+                    <p-tag [value]="etiquetaEstatus(registro.estatusEncaje)" [severity]="severidadEncaje(registro.estatusEncaje)"></p-tag
+                    ><p-tag [value]="etiquetaEstatus(registro.estatusPedido)" [severity]="severidadPedido(registro.estatusPedido)"></p-tag>
+                </div>
+                <div class="mobile-details">
+                    <span>Evento: {{ fechaTexto(registro.fechaEvento) }}</span
+                    ><span>Talla: {{ etiquetaCatalogo(tallas(), registro.talla) }}</span
+                    ><strong>{{ registro.precio | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+                </div>
+                <p-button label="Acciones" icon="pi pi-ellipsis-v" severity="secondary" [outlined]="true" size="small" (onClick)="abrirAcciones($event, registro, actionsMenu)"></p-button>
+            </article>
+        } @empty {
+            <div class="empty-state">
+                <i class="pi pi-inbox"></i>
+                <h3>No encontramos batas de encaje</h3>
+            </div>
+        }
+    </div>
+
+    <p-menu #actionsMenu [popup]="true" [model]="menuItems"></p-menu>
+    <p-dialog header="Editar datos básicos" [visible]="mostrarEdicion()" (visibleChange)="mostrarEdicion.set($event)" [modal]="true" [draggable]="false" [style]="{ width: 'min(94vw, 38rem)' }">
+        <div class="edit-form">
+            <div class="filter-field"><label for="telefonoEditar">Terminación de teléfono</label><input pInputText id="telefonoEditar" [(ngModel)]="edicion.terminacionTelefono" /></div>
+            <div class="filter-field"><label for="fechaEditar">Fecha del evento</label><input pInputText id="fechaEditar" type="date" [ngModel]="fechaInput(edicion.fechaEvento ?? null)" (ngModelChange)="edicion.fechaEvento = $event || null" /></div>
+            <div class="filter-field"><label>Talla</label><p-select [options]="tallas()" [(ngModel)]="edicion.talla" optionLabel="nombre" optionValue="nombre" placeholder="Selecciona una talla" class="w-full"></p-select></div>
+            <div class="filter-field"><label>Precio</label><p-inputnumber [(ngModel)]="edicion.precio" mode="currency" currency="MXN" locale="es-MX" [min]="0" class="w-full"></p-inputnumber></div>
+        </div>
+        <ng-template #footer><p-button label="Cancelar" severity="secondary" [text]="true" (onClick)="mostrarEdicion.set(false)"></p-button><p-button label="Guardar" icon="pi pi-check" (onClick)="guardarEdicion()"></p-button></ng-template>
+    </p-dialog>
+    <p-dialog header="Detalle de bata de encaje" [visible]="mostrarDetalle()" (visibleChange)="mostrarDetalle.set($event)" [modal]="true" [draggable]="false" [style]="{ width: 'min(94vw, 34rem)' }">
+        @if (detalleSeleccionado; as detalle) {
+            <div class="detail-grid">
+                <div>
+                    <small>Pedido</small><strong>{{ detalle.pedidoFolio }}</strong>
+                </div>
+                <div>
+                    <small>Origen</small><strong>{{ detalle.adicionalFolio || 'Pedido original' }}</strong>
+                </div>
+                <div>
+                    <small>Tipo de encaje</small><strong>{{ etiquetaTipo(detalle.tipoEncajeId) }}</strong>
+                </div>
+                <div>
+                    <small>Color</small><strong>{{ etiquetaCatalogo(colores(), detalle.color) }}</strong>
+                </div>
+                <div>
+                    <small>Talla</small><strong>{{ etiquetaCatalogo(tallas(), detalle.talla) }}</strong>
+                </div>
+                <div>
+                    <small>Precio</small><strong>{{ detalle.precio | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong>
+                </div>
+                <div>
+                    <small>Proveedor</small><strong>{{ detalle.proveedorId }}</strong>
+                </div>
+                <div>
+                    <small>Estatus bata</small><strong>{{ etiquetaEstatus(detalle.estatusEncaje) }}</strong>
+                </div>
+                <div class="detail-wide">
+                    <small>Observaciones</small><strong>{{ detalle.observaciones || '—' }}</strong>
+                </div>
+            </div>
+        }
+    </p-dialog>
+</div>

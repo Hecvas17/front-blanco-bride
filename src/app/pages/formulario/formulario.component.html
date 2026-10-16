@@ -1,0 +1,605 @@
+<p-toast></p-toast>
+
+<div class="formulario-page" [formGroup]="form">
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">NUEVO PEDIDO</span>
+            <h1>Formulario</h1>
+            <p>Captura la información de tu pedido de forma rápida y clara.</p>
+        </div>
+        <div class="draft-status"><i class="pi pi-cloud"></i> Todo se mantiene en esta sesión</div>
+    </div>
+
+    <div class="formulario-layout">
+        <main class="formulario-main">
+            <p-stepper [value]="activeStep" [linear]="false" (valueChange)="onStepChange($event)" class="pedido-stepper">
+                <p-step-list>
+                    @for (paso of pasos; track paso; let i = $index) {
+                        <p-step [value]="i + 1" [disabled]="i > 0 && !navegacionDesbloqueada" [class.step-invalid]="i === 0 && navegacionDesbloqueada && !validarDatosClienteVisual()" (click)="marcarPaso(i + 1)">{{ paso }}</p-step>
+                    }
+                </p-step-list>
+                <p-step-panels>
+                    <p-step-panel [value]="1">
+                        <ng-template #content>
+                            <section class="step-content">
+                                <div class="step-title">
+                                    <span class="step-number">01</span>
+                                    <div>
+                                        <h2>Datos generales</h2>
+                                        <p>Cuéntanos lo esencial para comenzar tu pedido.</p>
+                                    </div>
+                                </div>
+                                <div class="field-grid">
+                                    <div class="field field-wide">
+                                        <label for="cliente">Cliente <span>*</span></label>
+                                        <div class="field-action-row">
+                                            <p-autocomplete
+                                                inputId="cliente"
+                                                formControlName="cliente"
+                                                [suggestions]="clientesFiltrados"
+                                                (completeMethod)="buscarCliente($event)"
+                                                optionLabel="nombre"
+                                                placeholder="Escribe o busca un nombre"
+                                                [dropdown]="true"
+                                                [forceSelection]="false"
+                                                [showClear]="true"
+                                                class="flex-1"
+                                            ></p-autocomplete>
+                                        </div>
+                                        @if (esInvalido(form.controls.cliente)) {
+                                            <small class="error-text">Escribe el nombre del cliente.</small>
+                                        }
+                                    </div>
+                                    <div class="field">
+                                        <label for="fechaEvento">Fecha del evento <span>*</span></label
+                                        ><p-datepicker inputId="fechaEvento" formControlName="fechaEvento" [showIcon]="true" dateFormat="dd/mm/yy" placeholder="Selecciona una fecha" class="w-full"></p-datepicker>
+                                        @if (esInvalido(form.controls.fechaEvento)) {
+                                            <small class="error-text">La fecha es obligatoria.</small>
+                                        }
+                                    </div>
+                                    <div class="field">
+                                        <label for="ubicacion">Ubicación <span>*</span></label
+                                        ><input pInputText id="ubicacion" formControlName="ubicacion" placeholder="Ciudad o lugar del evento" />
+                                        @if (esInvalido(form.controls.ubicacion)) {
+                                            <small class="error-text">Indica la ubicación.</small>
+                                        }
+                                    </div>
+                                    <div class="field">
+                                        <label for="terminacionContacto">Terminación de contacto <span>*</span></label
+                                        ><input pInputText id="terminacionContacto" formControlName="terminacionContacto" placeholder="¿Cómo prefieres que te contactemos?" />
+                                        @if (esInvalido(form.controls.terminacionContacto)) {
+                                            <small class="error-text">Este campo es obligatorio.</small>
+                                        }
+                                    </div>
+                                    <div class="field">
+                                        <label>Cuéntanos sobre ti <span>*</span></label>
+                                        <div class="choice-grid">
+                                            @for (tipo of tiposClienteCatalogo; track tipo) {
+                                                <button type="button" class="choice-chip" [class.selected]="form.controls.tipoCliente.value === tipo" (click)="seleccionarTipo($any(tipo))">
+                                                    <i [class]="tipo === 'Negocio' ? 'pi pi-briefcase' : tipo === 'Otro' ? 'pi pi-ellipsis-h' : 'pi pi-heart'"></i>{{ tipo }}
+                                                </button>
+                                            }
+                                        </div>
+                                        @if (form.controls.tipoCliente.value === 'Otro') {
+                                            <input pInputText formControlName="tipoClienteOtro" placeholder="Cuéntanos un poco más" class="mt-2" />
+                                        }
+                                        @if (esInvalido(form.controls.tipoCliente)) {
+                                            <small class="error-text">Elige una opción.</small>
+                                        }
+                                    </div>
+                                    <div class="field">
+                                        <label for="anticipo">Anticipo <span>*</span></label
+                                        ><p-inputnumber inputId="anticipo" formControlName="anticipo" mode="currency" currency="MXN" locale="es-MX" [min]="0" class="w-full"></p-inputnumber>
+                                        @if (esInvalido(form.controls.anticipo)) {
+                                            <small class="error-text">El anticipo debe ser igual o mayor a cero.</small>
+                                        }
+                                    </div>
+                                </div>
+                            </section>
+                        </ng-template>
+                    </p-step-panel>
+
+                    <p-step-panel [value]="2">
+                        <ng-template #content>
+                            <section class="step-content">
+                                <div class="step-title">
+                                    <span class="step-number">02</span>
+                                    <div>
+                                        <h2>Batas</h2>
+                                        <p>Agrega una bata por cada personalización que necesites.</p>
+                                    </div>
+                                </div>
+                                <div class="bata-list">
+                                    @for (bata of batasForm.controls; track bata; let i = $index) {
+                                        <article class="bata-card" [formGroup]="bataForm(i)">
+                                            <div class="bata-header">
+                                                <div>
+                                                    <span class="card-kicker">PERSONALIZACIÓN {{ i + 1 }}</span>
+                                                    <h3>
+                                                        Bata {{ i + 1 }} <span class="type-badge">{{ bata.controls.tipo.value === 'infantil' ? 'Infantil' : bata.controls.tipo.value === 'encaje' ? 'Encaje' : 'Normal' }}</span>
+                                                    </h3>
+                                                </div>
+                                                <div class="bata-header-actions">
+                                                    <span class="bata-summary"
+                                                        >{{ bata.controls.colorId.value ? nombreCatalogo(colores, bata.controls.colorId.value) : 'Sin color' }} ·
+                                                        {{ bata.controls.tallaId.value ? nombreCatalogo(tallas, bata.controls.tallaId.value) : 'Sin talla' }} · {{ bata.controls.precio.value | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</span
+                                                    >
+                                                    @if (batasForm.length > 1) {
+                                                        <button type="button" class="icon-button danger" (click)="eliminarBata(i)" aria-label="Eliminar bata"><i class="pi pi-trash"></i></button>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="field-grid bata-fields">
+                                                <div class="field">
+                                                    <label [for]="'tipo-bata-' + i">Tipo de bata</label
+                                                    ><select pInputText [id]="'tipo-bata-' + i" formControlName="tipoBataId" (change)="actualizarTipoBata(bata, bata.controls.tipoBataId.value ?? 'normal')">
+                                                        <option value="normal">Normal</option>
+                                                        <option value="infantil">Infantil</option>
+                                                    </select>
+                                                </div>
+                                                <div class="field">
+                                                    <label [for]="'proveedor-bata-' + i">Proveedor <span>*</span></label
+                                                    ><select pInputText [id]="'proveedor-bata-' + i" formControlName="proveedorId">
+                                                        <option [ngValue]="null">Sin proveedor asignado</option>
+                                                        @for (proveedor of proveedores; track proveedor.id) {
+                                                            <option [value]="proveedor.id">{{ proveedor.nombre }}</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="field">
+                                                    <label [for]="'color-' + i">Color <span>*</span></label
+                                                    ><select pInputText [id]="'color-' + i" formControlName="colorId">
+                                                        <option [ngValue]="null">Selecciona un color</option>
+                                                        @for (color of colores; track color.id) {
+                                                            <option [value]="color.id">{{ color.nombre }}</option>
+                                                        }
+                                                    </select>
+                                                    @if (esInvalido(bata.controls.colorId)) {
+                                                        <small class="error-text">Selecciona un color.</small>
+                                                    }
+                                                </div>
+                                                <div class="field">
+                                                    <label [for]="'talla-' + i">Talla <span>*</span></label
+                                                    ><select pInputText [id]="'talla-' + i" formControlName="tallaId">
+                                                        <option [ngValue]="null">Selecciona una talla</option>
+                                                        @for (talla of tallas; track talla.id) {
+                                                            <option [value]="talla.id">{{ talla.nombre }}</option>
+                                                        }
+                                                    </select>
+                                                    @if (esInvalido(bata.controls.tallaId)) {
+                                                        <small class="error-text">Selecciona una talla.</small>
+                                                    }
+                                                </div>
+                                                <div class="field"><label [for]="'frontal-' + i">Bordado frontal</label><input pInputText [id]="'frontal-' + i" formControlName="bordadoFrontal" placeholder="Ej. Ana" /></div>
+                                                <div class="field"><label [for]="'posterior-' + i">Bordado posterior</label><input pInputText [id]="'posterior-' + i" formControlName="bordadoPosterior" placeholder="Ej. Bride team" /></div>
+                                                <div class="field">
+                                                    <label [for]="'bordado-' + i">Color del texto bordado <span>*</span></label
+                                                    ><select pInputText [id]="'bordado-' + i" formControlName="colorBordadoId">
+                                                        <option [ngValue]="null">Selecciona un color</option>
+                                                        @for (color of coloresBordado; track color.id) {
+                                                            <option [value]="color.id">{{ color.nombre }}</option>
+                                                        }
+                                                    </select>
+                                                    @if (esInvalido(bata.controls.colorBordadoId)) {
+                                                        <small class="error-text">Selecciona el color del bordado.</small>
+                                                    }
+                                                </div>
+                                                <div class="field">
+                                                    <label [for]="'precio-' + i">Precio <span>*</span></label
+                                                    ><p-inputnumber [inputId]="'precio-' + i" formControlName="precio" mode="currency" currency="MXN" locale="es-MX" [min]="0" class="w-full"></p-inputnumber>
+                                                    @if (esInvalido(bata.controls.precio)) {
+                                                        <small class="error-text">Indica un precio válido.</small>
+                                                    }
+                                                </div>
+                                                <div class="field field-wide">
+                                                    <label [for]="'observaciones-' + i">Observaciones / comentarios</label
+                                                    ><textarea pInputText [id]="'observaciones-' + i" formControlName="observaciones" rows="3" placeholder="Cualquier detalle importante para esta bata"></textarea>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    }
+                                </div>
+                                <div class="add-actions">
+                                    <p-button label="Agregar bata" icon="pi pi-plus" [outlined]="true" (onClick)="agregarBata('adulto')"></p-button
+                                    ><p-button label="Agregar bata infantil" icon="pi pi-plus" severity="secondary" [outlined]="true" (onClick)="agregarBata('infantil')"></p-button>
+                                </div>
+                            </section>
+                        </ng-template>
+                    </p-step-panel>
+
+                    <p-step-panel [value]="3"
+                        ><ng-template #content
+                            ><section class="step-content">
+                                <div class="step-title">
+                                    <span class="step-number">03</span>
+                                    <div>
+                                        <h2>Productos adicionales</h2>
+                                        <p>Agrega únicamente los productos que incluya este pedido.</p>
+                                    </div>
+                                </div>
+                                <div class="add-actions"><p-button label="Agregar producto" icon="pi pi-plus" (onClick)="mostrarProductoDialog = true"></p-button></div>
+                                <div class="product-list">
+                                    @for (producto of productosForm.controls; track producto; let i = $index) {
+                                        <article class="product-card" [formGroup]="productoForm(i)">
+                                            <div class="product-header">
+                                                <div>
+                                                    <span class="card-kicker">PRODUCTO ADICIONAL {{ i + 1 }}</span>
+                                                    <h3>{{ nombreProducto(productoTipo(i)) }}</h3>
+                                                    <p class="product-collapsed-summary">
+                                                        {{ producto.get('cantidad')?.value }} piezas · {{ nombreProveedor(producto.get('proveedorId')?.value) }}
+                                                        @if (productoTipo(i) === 'pantalon' || productoTipo(i) === 'bata_encaje') {
+                                                            · {{ nombreCatalogo(colores, producto.get('colorProductoId')?.value) }} · {{ nombreCatalogo(tallas, producto.get('tallaId')?.value) }}
+                                                        }
+                                                        ·
+                                                        {{ numero(producto.get('cantidad')?.value) * numero(producto.get('precio')?.value) | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}
+                                                    </p>
+                                                </div>
+                                                <button type="button" class="icon-button danger" (click)="eliminarProducto(i)" aria-label="Eliminar producto"><i class="pi pi-trash"></i></button>
+                                            </div>
+                                            <div class="field-grid product-fields">
+                                                <div class="field">
+                                                    <label>Cantidad <span>*</span></label
+                                                    ><p-inputnumber formControlName="cantidad" [min]="1" [showButtons]="true"></p-inputnumber>
+                                                </div>
+                                                <div class="field">
+                                                    <label>Precio <span>*</span></label
+                                                    ><p-inputnumber formControlName="precio" mode="currency" currency="MXN" locale="es-MX" [min]="0"></p-inputnumber>
+                                                </div>
+                                                <div class="field">
+                                                    <label>Proveedor <span>*</span></label
+                                                    ><select pInputText formControlName="proveedorId">
+                                                        <option [ngValue]="null">Sin proveedor asignado</option>
+                                                        @for (proveedor of proveedores; track proveedor.id) {
+                                                            <option [value]="proveedor.id">{{ proveedor.nombre }}</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                @if (productoTipo(i) === 'panuelo' || productoTipo(i) === 'panuelo_mascota') {
+                                                    <div class="field">
+                                                        <label>Color del pañuelo <span>*</span></label
+                                                        ><select pInputText formControlName="colorProductoId">
+                                                            <option [ngValue]="null">Selecciona un color</option>
+                                                            @for (color of colores; track color.id) {
+                                                                <option [value]="color.id">{{ color.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Color del texto <span>*</span></label
+                                                        ><select pInputText formControlName="colorTextoId">
+                                                            <option [ngValue]="null">Selecciona un color</option>
+                                                            @for (color of coloresBordado; track color.id) {
+                                                                <option [value]="color.id">{{ color.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                @if (productoTipo(i) === 'playera_hombre') {
+                                                    <div class="field">
+                                                        <label>Color de la playera <span>*</span></label
+                                                        ><select pInputText formControlName="colorProductoId">
+                                                            <option [ngValue]="null">Selecciona un color</option>
+                                                            @for (color of colores; track color.id) {
+                                                                <option [value]="color.id">{{ color.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Talla <span>*</span></label
+                                                        ><select pInputText formControlName="tallaId">
+                                                            <option [ngValue]="null">Selecciona una talla</option>
+                                                            @for (talla of tallas; track talla.id) {
+                                                                <option [value]="talla.id">{{ talla.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                @if (productoTipo(i) === 'pantalon') {
+                                                    <div class="field">
+                                                        <label>Color <span>*</span></label
+                                                        ><select pInputText formControlName="colorProductoId">
+                                                            <option [ngValue]="null">Selecciona un color</option>
+                                                            @for (color of colores; track color.id) {
+                                                                <option [value]="color.id">{{ color.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Talla <span>*</span></label
+                                                        ><select pInputText formControlName="tallaId">
+                                                            <option [ngValue]="null">Selecciona una talla</option>
+                                                            @for (talla of tallas; track talla.id) {
+                                                                <option [value]="talla.id">{{ talla.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                @if (productoTipo(i) === 'bata_encaje') {
+                                                    <div class="field">
+                                                        <label>Tipo de encaje <span>*</span></label>
+                                                        <select pInputText formControlName="tipoEncajeId">
+                                                            <option [ngValue]="null">Selecciona un tipo</option>
+                                                            @for (tipo of tiposEncaje; track tipo.id) {
+                                                                <option [value]="tipo.id">{{ tipo.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Color <span>*</span></label>
+                                                        <select pInputText formControlName="colorProductoId">
+                                                            <option [ngValue]="null">Selecciona un color</option>
+                                                            @for (color of colores; track color.id) {
+                                                                <option [value]="color.id">{{ color.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Talla <span>*</span></label>
+                                                        <select pInputText formControlName="tallaId">
+                                                            <option [ngValue]="null">Selecciona una talla</option>
+                                                            @for (talla of tallas; track talla.id) {
+                                                                <option [value]="talla.id">{{ talla.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                @if (productoTipo(i) === 'panuelo_mascota') {
+                                                    <div class="field">
+                                                        <label>Talla mascota <span>*</span></label
+                                                        ><select pInputText formControlName="tallaMascota">
+                                                            <option [ngValue]="null">Selecciona una talla</option>
+                                                            @for (talla of tallasMascota; track talla.id) {
+                                                                <option [value]="talla.id">{{ talla.nombre }}</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                @if (productoTipo(i) === 'pantuflas') {
+                                                    <div class="field field-wide">
+                                                        <label>Opción de pantufla <span>*</span></label>
+                                                        <div class="choice-grid">
+                                                            @for (opcion of opcionesPantufla; track opcion.id) {
+                                                                <button type="button" class="choice-chip" [class.selected]="producto.get('opcionPantufla')?.value === opcion.id" (click)="producto.get('opcionPantufla')?.setValue(opcion.id)">
+                                                                    {{ opcion.nombre }}
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+                                                <div class="field field-wide">
+                                                    <label>{{ productoTipo(i) === 'pantalon' || productoTipo(i) === 'bata_encaje' ? 'Observaciones' : 'Texto / observaciones' }}</label
+                                                    ><textarea pInputText formControlName="texto" rows="2" placeholder="Texto o indicaciones del producto"></textarea>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    }
+                                </div>
+                                <div class="field mt-4">
+                                    <label for="detallesComplementos">Detalles adicionales sobre tus productos</label
+                                    ><textarea pInputText id="detallesComplementos" formControlName="detallesComplementos" rows="3" placeholder="Cuéntanos cualquier detalle adicional"></textarea>
+                                </div></section></ng-template
+                    ></p-step-panel>
+
+                    <p-step-panel [value]="4"
+                        ><ng-template #content
+                            ><section class="step-content">
+                                <div class="step-title">
+                                    <span class="step-number">04</span>
+                                    <div>
+                                        <h2>Diseño y referencias</h2>
+                                        <p>Elige el estilo y agrega hasta dos referencias visuales.</p>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Tipografía <span>*</span></label>
+                                    <div class="font-grid">
+                                        @for (tipografia of tipografias; track tipografia.id) {
+                                            <button type="button" class="font-card" [class.selected]="form.controls.tipografiaId.value === tipografia.id" (click)="form.controls.tipografiaId.setValue(tipografia.id)">
+                                                <span>{{ tipografia.muestra }}</span
+                                                ><strong>{{ tipografia.nombre }}</strong
+                                                ><i class="pi pi-check-circle"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="field mt-5">
+                                    <label>Dual del texto <span>*</span></label>
+                                    <div class="radio-grid">
+                                        @for (dual of opcionesDual; track dual.id) {
+                                            <label class="radio-card"
+                                                ><p-radiobutton [inputId]="dual.id" formControlName="dualTexto" [value]="dual.nombre"></p-radiobutton
+                                                ><span
+                                                    ><strong>{{ dual.nombre }}</strong
+                                                    ><small>{{ dual.id === 'ninguno' ? 'Sin texto dual' : 'Composición equilibrada' }}</small></span
+                                                ></label
+                                            >
+                                        }
+                                    </div>
+                                </div>
+                                <div class="field mt-5">
+                                    <div class="label-row">
+                                        <label for="referencias">Referencias</label><span class="field-hint">{{ referencias.length }}/2 archivos · imágenes o PDF · máximo 10 MB</span>
+                                    </div>
+                                    <label class="upload-zone" for="referencias"
+                                        ><i class="pi pi-cloud-upload"></i><strong>Selecciona tus referencias</strong><span>Arrastra archivos aquí o haz clic para buscar</span
+                                        ><input id="referencias" type="file" accept="image/*,.pdf,application/pdf" multiple (change)="archivoSeleccionado($event)" [disabled]="referencias.length >= 2"
+                                    /></label>
+                                    @if (referencias.length) {
+                                        <div class="file-list">
+                                            @for (file of referencias; track file.name; let i = $index) {
+                                                <div class="file-item">
+                                                    <i class="pi pi-file"></i
+                                                    ><span
+                                                        >{{ file.name }}<small>{{ formatoTamano(file.size) }}</small></span
+                                                    ><button type="button" class="icon-button" (click)="quitarReferencia(i)" aria-label="Quitar archivo"><i class="pi pi-times"></i></button>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div></section></ng-template
+                    ></p-step-panel>
+
+                    <p-step-panel [value]="5"
+                        ><ng-template #content
+                            ><section class="step-content">
+                                <div class="step-title">
+                                    <span class="step-number">05</span>
+                                    <div>
+                                        <h2>Resumen del pedido</h2>
+                                        <p>Revisa todos los detalles antes de guardar o finalizar.</p>
+                                    </div>
+                                </div>
+                                <div class="summary-block">
+                                    <h3>Datos generales</h3>
+                                    <div class="summary-grid">
+                                        <div>
+                                            <small>Cliente</small><strong>{{ nombreClienteCapturado() || 'Sin seleccionar' }}</strong>
+                                        </div>
+                                        <div>
+                                            <small>Fecha del evento</small><strong>{{ form.controls.fechaEvento.value ? (form.controls.fechaEvento.value | date: 'dd/MM/yyyy') : 'Sin seleccionar' }}</strong>
+                                        </div>
+                                        <div>
+                                            <small>Ubicación</small><strong>{{ form.controls.ubicacion.value || 'Sin indicar' }}</strong>
+                                        </div>
+                                        <div>
+                                            <small>Tipo de cliente</small><strong>{{ form.controls.tipoCliente.value || 'Sin seleccionar' }}{{ form.controls.tipoCliente.value === 'Otro' ? ' · ' + form.controls.tipoClienteOtro.value : '' }}</strong>
+                                        </div>
+                                        <div>
+                                            <small>Anticipo</small><strong>{{ form.controls.anticipo.value | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="summary-block">
+                                    <div class="summary-section-heading">
+                                        <h3>Personalizaciones ({{ batasForm.length }})</h3>
+                                        <button type="button" class="text-button" (click)="marcarPaso(2)">Editar</button>
+                                    </div>
+                                    @for (bata of batasForm.controls; track bata; let i = $index) {
+                                        <div class="summary-row">
+                                            <div>
+                                                <strong>Bata {{ i + 1 }}</strong
+                                                ><span
+                                                    >{{ bata.controls.tipo.value === 'infantil' ? 'Infantil' : 'Adulto' }} · {{ nombreCatalogo(colores, bata.controls.colorId.value) }} · {{ nombreCatalogo(tallas, bata.controls.tallaId.value) }}</span
+                                                >
+                                            </div>
+                                            <strong>{{ bata.controls.precio.value | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="summary-block">
+                                    <div class="summary-section-heading">
+                                        <h3>Productos adicionales ({{ productosForm.length }})</h3>
+                                        <button type="button" class="text-button" (click)="marcarPaso(3)">Editar</button>
+                                    </div>
+                                    @for (producto of productosForm.controls; track producto; let i = $index) {
+                                        <div class="summary-row">
+                                            <div>
+                                                <strong>{{ nombreProducto(productoTipo(i)) }}</strong
+                                                ><span>{{ producto.get('cantidad')?.value }} piezas · {{ nombreProveedor(producto.get('proveedorId')?.value) }}</span>
+                                            </div>
+                                            <strong>{{ numero(producto.get('cantidad')?.value) * numero(producto.get('precio')?.value) | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                        </div>
+                                    }
+                                    @if (!productosForm.length) {
+                                        <p class="muted">No hay productos adicionales.</p>
+                                    }
+                                </div>
+                                <div class="summary-block supplier-summary">
+                                    <h3>DISTRIBUCIÓN POR PROVEEDOR</h3>
+                                    @for (proveedor of proveedores; track proveedor.id) {
+                                        @if (tieneProveedor(proveedor.id)) {
+                                            <div class="supplier-group">
+                                                <strong>{{ proveedor.nombre }}</strong>
+                                                @for (bata of batasForm.controls; track bata; let i = $index) {
+                                                    @if (bata.controls.proveedorId.value === proveedor.id) {
+                                                        <span>Bata {{ i + 1 }}</span>
+                                                    }
+                                                }
+                                                @for (producto of productosForm.controls; track producto; let i = $index) {
+                                                    @if (producto.get('proveedorId')?.value === proveedor.id) {
+                                                        <span>{{ nombreProducto(productoTipo(i)) }} · {{ producto.get('cantidad')?.value }} piezas</span>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                    @if (tieneSinProveedor()) {
+                                        <div class="supplier-group"><strong>Sin proveedor asignado</strong><span>Hay productos pendientes de asignación</span></div>
+                                    }
+                                </div>
+                                <div class="summary-block">
+                                    <h3>Diseño</h3>
+                                    <div class="summary-grid">
+                                        <div>
+                                            <small>Tipografía</small><strong>{{ nombreCatalogo(tipografias, form.controls.tipografiaId.value) }}</strong>
+                                        </div>
+                                        <div>
+                                            <small>Dual del texto</small><strong>{{ form.controls.dualTexto.value || 'Sin seleccionar' }}</strong>
+                                        </div>
+                                        <div>
+                                            <small>Referencias</small><strong>{{ referencias.length }} archivo(s)</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section></ng-template
+                        ></p-step-panel
+                    >
+                </p-step-panels>
+            </p-stepper>
+            <div class="step-navigation">
+                <p-button label="Atrás" icon="pi pi-arrow-left" severity="secondary" [text]="true" [disabled]="activeStep === 1" (onClick)="anterior()"></p-button>
+                <div>
+                    @if (activeStep < 5) {
+                        <p-button label="Siguiente" icon="pi pi-arrow-right" iconPos="right" (onClick)="siguiente()"></p-button>
+                    } @else {
+                        <p-button label="Guardar borrador" severity="secondary" [outlined]="true" (onClick)="guardarBorrador()"></p-button
+                        ><p-button label="Finalizar pedido" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="finalizarPedido()"></p-button>
+                    }
+                </div>
+            </div>
+        </main>
+        <aside class="order-summary">
+            <div class="summary-card">
+                <div class="summary-card-heading">
+                    <span class="summary-icon"><i class="pi pi-shopping-bag"></i></span>
+                    <div>
+                        <span class="eyebrow">EN VIVO</span>
+                        <h2>Resumen del pedido</h2>
+                    </div>
+                </div>
+                <div class="metric">
+                    <span>Cliente</span><strong>{{ nombreClienteCapturado() || 'Pendiente' }}</strong>
+                </div>
+                <div class="metric">
+                    <span>Batas</span><strong>{{ batasForm.length }}</strong>
+                </div>
+                <div class="metric">
+                    <span>Productos adicionales</span><strong>{{ cantidadComplementos() }}</strong>
+                </div>
+                <div class="summary-total">
+                    <div>
+                        <span>Subtotal</span><strong>{{ total() | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                    </div>
+                    <div>
+                        <span>Anticipo</span><strong>{{ form.controls.anticipo.value | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                    </div>
+                    <div class="remaining">
+                        <span>Restante</span><strong>{{ restante() | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<p-dialog header="Agregar producto" [(visible)]="mostrarProductoDialog" [modal]="true" [style]="{ width: 'min(92vw, 34rem)' }" [draggable]="false">
+    <p class="dialog-helper">Selecciona el tipo de producto que deseas agregar al pedido.</p>
+    <div class="product-type-grid">
+        @for (producto of productosCatalogo; track producto.tipo) {
+            <button type="button" class="product-type-card" (click)="agregarProducto(producto.tipo)">
+                <i class="pi pi-sparkles"></i><strong>{{ producto.nombre }}</strong
+                ><small>Desde {{ producto.precioSugerido | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</small>
+            </button>
+        }
+    </div>
+</p-dialog>

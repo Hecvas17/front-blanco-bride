@@ -1,0 +1,252 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="pedidos-page">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">GESTIÓN</span>
+            <h1>Pedidos</h1>
+            <p>Consulta y seguimiento de pedidos</p>
+        </div>
+        <p-button label="Nuevo pedido" icon="pi pi-plus" (onClick)="router.navigate(['/formulario'])"></p-button>
+    </header>
+
+    <section class="kpi-grid">
+        <article class="kpi-card">
+            <span class="kpi-icon blue"><i class="pi pi-list"></i></span>
+            <div>
+                <small>Total de pedidos</small><strong>{{ totalPedidos() }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon amber"><i class="pi pi-sync"></i></span>
+            <div>
+                <small>En proceso</small><strong>{{ contarEstatus('en_proceso') }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon green"><i class="pi pi-check-circle"></i></span>
+            <div>
+                <small>Listos</small><strong>{{ contarEstatus('listo') }}</strong>
+            </div>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-icon violet"><i class="pi pi-send"></i></span>
+            <div>
+                <small>Entregados</small><strong>{{ contarEstatus('entregado') }}</strong>
+            </div>
+        </article>
+    </section>
+
+    <section class="filter-card">
+        <div class="filter-heading">
+            <div>
+                <h2>Buscar pedidos</h2>
+                <span>Filtra la vista para encontrar rápidamente lo que necesitas.</span>
+            </div>
+            <p-button label="Limpiar filtros" icon="pi pi-filter-slash" severity="secondary" [text]="true" (onClick)="limpiarFiltros()"></p-button>
+        </div>
+        <div class="filter-grid">
+            <div class="filter-field search-field">
+                <label for="buscar">Búsqueda general</label
+                ><span class="input-icon"><i class="pi pi-search"></i><input pInputText id="buscar" [(ngModel)]="busqueda" (ngModelChange)="aplicarFiltros()" placeholder="Buscar por folio o cliente" /></span>
+            </div>
+            <div class="filter-field">
+                <label for="estatus">Estatus</label
+                ><select pInputText id="estatus" [(ngModel)]="estatusFiltro" (ngModelChange)="aplicarFiltros()">
+                    <option value="">Todos los estatus</option>
+                    @for (estatus of estatuses; track estatus) {
+                        <option [value]="estatus">{{ formatoEstatus(estatus) }}</option>
+                    }
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="tipoCliente">Tipo de cliente</label
+                ><select pInputText id="tipoCliente" [(ngModel)]="tipoClienteFiltro" (ngModelChange)="aplicarFiltros()">
+                    <option value="">Todos los tipos</option>
+                    @for (tipo of tiposCliente; track tipo) {
+                        <option [value]="tipo">{{ tipo }}</option>
+                    }
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="rangoFechas">Fecha del evento</label
+                ><p-datepicker inputId="rangoFechas" [(ngModel)]="rangoFechas" selectionMode="range" [showIcon]="true" dateFormat="dd/mm/yy" placeholder="Cualquier fecha" (ngModelChange)="aplicarFiltros()" class="w-full"></p-datepicker>
+            </div>
+        </div>
+    </section>
+
+    <section class="table-card">
+        <div class="table-heading">
+            <div>
+                <h2>Todos los pedidos</h2>
+                <span>{{ filtrados().length }} resultados encontrados</span>
+            </div>
+        </div>
+        <p-table [value]="filtrados()" [paginator]="true" [rows]="8" [rowsPerPageOptions]="[5, 8, 15]" [tableStyle]="{ 'min-width': '71rem' }" sortField="fechaEvento" [sortOrder]="1" responsiveLayout="scroll">
+            <ng-template #header
+                ><tr>
+                    <th pSortableColumn="folio">Folio <p-sortIcon field="folio"></p-sortIcon></th>
+                    <th pSortableColumn="clienteNombre">Cliente <p-sortIcon field="clienteNombre"></p-sortIcon></th>
+                    <th pSortableColumn="fechaEvento">Fecha del evento <p-sortIcon field="fechaEvento"></p-sortIcon></th>
+                    <th>Faltan</th>
+                    <th>Batas</th>
+                    <th>Complementos</th>
+                    <th pSortableColumn="total">Total <p-sortIcon field="total"></p-sortIcon></th>
+                    <th>Anticipo</th>
+                    <th>Restante</th>
+                    <th>Estatus</th>
+                    <th class="actions-column">Acciones</th>
+                </tr></ng-template
+            >
+            <ng-template #body let-pedido
+                ><tr [class.has-additional-row]="pedido.cantidadAdicionales > 0">
+                    <td>
+                        <a class="folio-link" [routerLink]="['/pedidos', pedido.id]">{{ pedido.folio }}</a>
+                        @if (pedido.cantidadAdicionales > 0) {
+                            <p-tag class="additional-indicator" [value]="nombreAdicionales(pedido)" severity="info"></p-tag>
+                        }
+                    </td>
+                    <td>
+                        <strong>{{ pedido.clienteNombre }}</strong
+                        ><small class="cell-subtitle">{{ pedido.tipoCliente }}</small>
+                    </td>
+                    <td>{{ fecha(pedido.fechaEvento) | date: 'dd/MM/yyyy' }}</td>
+                    <td class="days-cell"><p-tag [value]="urgenciaEvento(pedido).texto" [severity]="urgenciaEvento(pedido).severity"></p-tag></td>
+                    <td>{{ pedido.cantidadBatas }}</td>
+                    <td>{{ pedido.cantidadComplementos }}</td>
+                    <td class="money">{{ pedido.total | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</td>
+                    <td>{{ pedido.anticipo | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</td>
+                    <td class="remaining-money">{{ pedido.restante | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</td>
+                    <td><p-tag [value]="formatoEstatus(pedido.estatus)" [severity]="severidad(pedido.estatus)"></p-tag></td>
+                    <td><p-button type="button" icon="pi pi-ellipsis-v" severity="secondary" [text]="true" [rounded]="true" ariaLabel="Acciones del pedido" (pointerdown)="abrirAcciones($event, pedido, actionsMenu)"></p-button></td></tr
+            ></ng-template>
+            <ng-template #emptymessage
+                ><tr>
+                    <td colspan="11">
+                        <div class="empty-state">
+                            <i class="pi pi-inbox"></i>
+                            <h3>No encontramos pedidos</h3>
+                            <p>Prueba con otros filtros o crea un nuevo pedido.</p>
+                            <p-button label="Crear pedido" icon="pi pi-plus" [outlined]="true" (onClick)="router.navigate(['/formulario'])"></p-button>
+                        </div>
+                    </td></tr
+            ></ng-template>
+        </p-table>
+    </section>
+
+    <div class="mobile-pedido-list">
+        @for (pedido of filtrados(); track pedido.id) {
+            <article class="mobile-pedido-card">
+                <div class="mobile-card-heading">
+                    <a class="folio-link" [routerLink]="['/pedidos', pedido.id]">{{ pedido.folio }}</a
+                    ><p-tag [value]="formatoEstatus(pedido.estatus)" [severity]="severidad(pedido.estatus)"></p-tag>
+                </div>
+                <h3>{{ pedido.clienteNombre }}</h3>
+                @if (pedido.cantidadAdicionales > 0) {
+                    <p-tag class="additional-indicator mobile-additional-indicator" [value]="nombreAdicionales(pedido)" severity="info"></p-tag>
+                }
+                <span class="mobile-evento">Evento: {{ fecha(pedido.fechaEvento) | date: 'dd/MM/yyyy' }}</span
+                ><span class="mobile-faltan">Faltan: <p-tag [value]="urgenciaEvento(pedido).texto" [severity]="urgenciaEvento(pedido).severity"></p-tag></span>
+                <div class="mobile-money">
+                    <div>
+                        <small>Total</small><strong>{{ pedido.total | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                    </div>
+                    <div>
+                        <small>Restante</small><strong>{{ pedido.restante | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                    </div>
+                    <p-button type="button" icon="pi pi-ellipsis-v" severity="secondary" [text]="true" [rounded]="true" ariaLabel="Acciones del pedido" (pointerdown)="abrirAcciones($event, pedido, actionsMenu)"></p-button>
+                </div>
+            </article>
+        } @empty {
+            <div class="empty-state">
+                <i class="pi pi-inbox"></i>
+                <h3>No encontramos pedidos</h3>
+                <p>Prueba con otros filtros o crea un nuevo pedido.</p>
+            </div>
+        }
+    </div>
+
+    <p-menu #actionsMenu [popup]="true" [model]="acciones"></p-menu>
+    <p-dialog
+        [header]="tipoDocumento === 'cliente' ? 'PDF para cliente' : 'Orden de producción'"
+        [visible]="mostrarDocumento()"
+        (visibleChange)="mostrarDocumento.set($event)"
+        [modal]="true"
+        [maximizable]="true"
+        [draggable]="false"
+        [style]="{ width: 'min(96vw, 1160px)' }"
+        [contentStyle]="{ overflow: 'auto', background: '#f3f5f7' }"
+    >
+        @if (pedidoSeleccionado; as pedido) {
+            <app-pedido-documento-preview [pedido]="pedido" [tipoDocumento]="tipoDocumento" [alcance]="alcanceDocumento" [adicionalIds]="adicionalesSeleccionados"></app-pedido-documento-preview>
+        }
+        <ng-template #footer>
+            <p-button label="Cerrar" severity="secondary" [text]="true" (onClick)="mostrarDocumento.set(false)"></p-button>
+            <p-button label="Imprimir" icon="pi pi-print" severity="secondary" [outlined]="true" (onClick)="avisoDocumento('imprimir')"></p-button>
+            <p-button label="Descargar PDF" icon="pi pi-download" (onClick)="avisoDocumento('pdf')"></p-button>
+        </ng-template>
+    </p-dialog>
+    <p-dialog header="¿Qué deseas incluir?" [visible]="mostrarAlcanceDocumento()" (visibleChange)="mostrarAlcanceDocumento.set($event)" [modal]="true" [draggable]="false" [style]="{ width: 'min(92vw, 34rem)' }">
+        <div class="scope-dialog">
+            <p>
+                Selecciona el alcance del documento para <strong>{{ pedidoSeleccionado?.folio }}</strong
+                >.
+            </p>
+            <label class="scope-option"
+                ><input type="radio" name="alcanceDocumento" value="completo" [(ngModel)]="alcanceDocumento" /> <span><strong>Pedido completo + adicionales</strong><small>Secciones separadas para conservar la trazabilidad.</small></span></label
+            >
+            <label class="scope-option"
+                ><input type="radio" name="alcanceDocumento" value="original" [(ngModel)]="alcanceDocumento" /> <span><strong>Solo pedido original</strong><small>Excluye todos los adicionales.</small></span></label
+            >
+            <label class="scope-option"
+                ><input type="radio" name="alcanceDocumento" value="adicionales" [(ngModel)]="alcanceDocumento" /> <span><strong>Solo adicionales</strong><small>Elige uno o varios adicionales.</small></span></label
+            >
+            @if (alcanceDocumento === 'adicionales') {
+                <div class="additional-checklist">
+                    @for (adicional of pedidoSeleccionado?.adicionales ?? []; track adicional.id) {
+                        <label
+                            ><input type="checkbox" [value]="adicional.id" [checked]="adicionalesSeleccionados.includes(adicional.id)" (change)="alternarAdicionalSeleccionado(adicional.id, $any($event.target).checked)" /> {{ adicional.folio }}</label
+                        >
+                    }
+                </div>
+            }
+            <div class="dialog-actions">
+                <p-button label="Cancelar" severity="secondary" [text]="true" (onClick)="mostrarAlcanceDocumento.set(false)"></p-button><p-button label="Continuar" icon="pi pi-arrow-right" (onClick)="continuarDocumento()"></p-button>
+            </div>
+        </div>
+    </p-dialog>
+    <p-dialog header="Adicional del pedido" [(visible)]="mostrarAdicionalForm" [modal]="true" [maximizable]="true" [draggable]="false" [style]="{ width: 'min(96vw, 54rem)' }">
+        @if (pedidoSeleccionado; as pedido) {
+            <app-pedido-adicional-form [pedido]="pedido" [adicional]="adicionalEditando" (cancelar)="mostrarAdicionalForm = false" (guardado)="adicionalGuardado()"></app-pedido-adicional-form>
+        }
+    </p-dialog>
+    <p-dialog header="Adicionales del pedido" [visible]="mostrarAdicionales()" (visibleChange)="mostrarAdicionales.set($event)" [modal]="true" [draggable]="false" [style]="{ width: 'min(92vw, 42rem)' }">
+        <div class="additional-list-dialog">
+            @for (adicional of pedidoSeleccionado?.adicionales ?? []; track adicional.id) {
+                <article>
+                    <div>
+                        <strong>{{ adicional.folio }}</strong
+                        ><small>{{ adicional.creadoEn | date: 'dd/MM/yyyy' }} · {{ adicional.productos.length }} productos</small>
+                    </div>
+                    <strong>{{ adicional.total | currency: 'MXN' : 'symbol-narrow' : '1.2-2' }}</strong
+                    ><p-button label="Editar" severity="secondary" [text]="true" (onClick)="mostrarAdicionales.set(false); abrirAdicional(adicional)"></p-button>
+                </article>
+            }
+        </div>
+    </p-dialog>
+    <p-dialog header="Cambiar estatus" [(visible)]="mostrarEstatus" [modal]="true" [draggable]="false" [style]="{ width: 'min(92vw, 28rem)' }">
+        <div class="status-dialog">
+            <p>
+                Actualiza el estado de <strong>{{ pedidoSeleccionado?.folio }}</strong> en esta sesión.
+            </p>
+            <label for="nuevoEstatus">Nuevo estatus</label
+            ><select pInputText id="nuevoEstatus" [(ngModel)]="nuevoEstatus">
+                @for (estatus of estatuses; track estatus) {
+                    <option [value]="estatus">{{ formatoEstatus(estatus) }}</option>
+                }
+            </select>
+            <div class="dialog-actions"><p-button label="Cancelar" severity="secondary" [text]="true" (onClick)="mostrarEstatus = false"></p-button><p-button label="Guardar estatus" icon="pi pi-check" (onClick)="guardarEstatus()"></p-button></div>
+        </div>
+    </p-dialog>
+</div>
