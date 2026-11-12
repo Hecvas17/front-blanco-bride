@@ -7,6 +7,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageService } from 'primeng/api';
 import { FormularioCatalogosService } from '../../formulario/services/formulario-catalogos.service';
 import { Pedido, PedidoAdicional, PedidoAdicionalProducto } from '../models/pedido.model';
+import { EstatusBataEncaje } from '../../formulario/models/formulario.model';
 import { PedidosService } from '../services/pedidos.service';
 
 @Component({
@@ -63,14 +64,14 @@ export class PedidoAdicionalFormComponent implements OnInit {
             this.fb.group({
                 idTemporal: [producto?.idTemporal ?? `adicional-producto-${Date.now()}`],
                 tipo: [tipo, Validators.required],
-                cantidad: [producto?.cantidad ?? 1, [Validators.required, Validators.min(1)]],
+                cantidad: [producto?.cantidad ?? 1, [Validators.required, Validators.min(1), Validators.max(100)]],
                 colorProductoId: [producto?.colorProductoId ?? null],
                 tallaId: [producto?.tallaId ?? null],
                 precio: [producto?.precio ?? catalogo?.precio ?? 0, [Validators.required, Validators.min(0)]],
                 observaciones: [producto?.observaciones ?? producto?.texto ?? ''],
                 proveedorId: [producto?.proveedorId ?? null, Validators.required],
                 tipoEncajeId: [producto?.tipoEncajeId ?? null],
-                estatusBataEncaje: [producto?.estatusBataEncaje ?? 'solicitada']
+                estatusBataEncaje: [producto?.estatusBataEncaje ?? 'SOLICITADA']
             })
         );
     }
@@ -103,7 +104,7 @@ export class PedidoAdicionalFormComponent implements OnInit {
             proveedorId: String(item['proveedorId'] ?? ''),
             estatusProveedor: 'pendiente' as const,
             tipoEncajeId: String(item['tipoEncajeId'] ?? '') || undefined,
-            estatusBataEncaje: String(item['estatusBataEncaje'] ?? 'solicitada') as 'solicitada' | 'ya_llego' | 'lista'
+            estatusBataEncaje: String(item['estatusBataEncaje'] ?? 'SOLICITADA') as EstatusBataEncaje
         }));
         const payload = { pedidoId: this.pedido.id, creadoEn: this.adicional?.creadoEn ?? new Date(), productos, observaciones: value.observaciones ?? '', total: this.total() };
         const request = this.adicional ? this.service.actualizarAdicional(this.pedido.id, { ...this.adicional, ...payload }) : this.service.crearAdicional(this.pedido.id, payload);

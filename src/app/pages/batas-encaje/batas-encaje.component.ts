@@ -55,6 +55,7 @@ export class BatasEncajeComponent {
     readonly tiposEncaje = signal<Array<{ label: string; value: string }>>([]);
     readonly estatusEncaje = signal<Array<{ label: string; value: string }>>([]);
     readonly estatusPedido = signal<Array<{ label: string; value: string }>>([]);
+    readonly estatusPedidoPrincipal = signal<Array<{ label: string; value: string }>>([]);
 
     constructor() {
         this.catalogos
@@ -73,10 +74,14 @@ export class BatasEncajeComponent {
             .getEstatusBataEncaje()
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((items) => this.estatusEncaje.set(items.map((item) => ({ label: item.nombre, value: item.clave }))));
+        this.estatusPedido.set([
+            { label: 'En producción', value: 'EN_PRODUCCION' },
+            { label: 'Batas normales listas', value: 'BATAS_NORMALES_LISTAS' }
+        ]);
         this.catalogos
             .getEstatusPedido()
             .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((items) => this.estatusPedido.set(items.map((item) => ({ label: item.nombre, value: item.clave }))));
+            .subscribe((items) => this.estatusPedidoPrincipal.set(items.map((item) => ({ label: item.nombre, value: item.clave }))));
         this.cargar();
     }
 
@@ -122,7 +127,7 @@ export class BatasEncajeComponent {
 
     urgencia(registro: BataEncaje): UrgenciaEvento {
         if (!registro.fechaEvento) return { dias: 0, texto: '—', severity: 'secondary', vencido: false };
-        return getUrgenciaEvento(registro.fechaEvento, registro.estatusPedido === 'entregado' ? 'entregado' : undefined);
+        return getUrgenciaEvento(registro.fechaEvento, registro.estatusPedidoPrincipal === 'ENTREGADO' ? 'ENTREGADO' : undefined);
     }
 
     contarEstatus(estatus: EstatusEncaje): number {
@@ -140,11 +145,17 @@ export class BatasEncajeComponent {
     etiquetaEstatus(value: EstatusEncaje | EstatusPedidoEncaje): string {
         return [...this.estatusEncaje(), ...this.estatusPedido()].find((item) => item.value === value)?.label ?? value;
     }
-    severidadEncaje(value: EstatusEncaje): 'info' | 'warn' | 'success' {
-        return value === 'solicitada' ? 'info' : value === 'ya_llego' ? 'warn' : 'success';
+    etiquetaEstatusPrincipal(value: string | null | undefined): string {
+        return this.estatusPedidoPrincipal().find((item) => item.value === value)?.label ?? value ?? '—';
+    }
+    severidadPrincipal(value: string | null | undefined): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
+        return value === 'ENTREGADO' ? 'success' : value === 'SITUACION' ? 'danger' : value === 'POR_LIQUIDAR' ? 'warn' : 'info';
+    }
+    severidadEncaje(value: EstatusEncaje): 'info' | 'warn' | 'success' | 'secondary' {
+        return value === 'SIN_SOLICITAR' ? 'secondary' : value === 'SOLICITADA' ? 'info' : value === 'YA_LLEGO' ? 'warn' : value === 'EN_PRODUCCION' ? 'info' : 'success';
     }
     severidadPedido(value: EstatusPedidoEncaje): 'success' | 'warn' | 'info' | 'secondary' {
-        return value === 'entregado' ? 'success' : value === 'transito' ? 'warn' : value === 'en_produccion' ? 'info' : 'secondary';
+        return value === 'BATAS_NORMALES_LISTAS' ? 'secondary' : 'info';
     }
     mes(registro: BataEncaje): string {
         return registro.fechaEvento ? this.fechaCalendario(registro.fechaEvento).toLocaleDateString('es-MX', { month: 'long' }) : '—';
@@ -153,15 +164,6 @@ export class BatasEncajeComponent {
         return value ? this.fechaCalendario(value).toLocaleDateString('es-MX') : '—';
     }
 
-    actualizarTipo(registro: BataEncaje, value: TipoEncaje): void {
-        this.service.actualizarTipoEncaje(registro.productoId, value).subscribe(() => this.confirmarActualizacion());
-    }
-    actualizarEstatusEncaje(registro: BataEncaje, value: EstatusEncaje): void {
-        this.service.actualizarEstatusEncaje(registro.productoId, value).subscribe(() => this.confirmarActualizacion());
-    }
-    actualizarEstatusPedido(registro: BataEncaje, value: EstatusPedidoEncaje): void {
-        this.service.actualizarEstatusPedido(registro.productoId, value).subscribe(() => this.confirmarActualizacion());
-    }
     confirmarActualizacion(): void {
         this.cargar();
         this.messages.add({ severity: 'success', summary: 'Actualizado', detail: 'El cambio se guardó en el backend.' });

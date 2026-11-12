@@ -31,7 +31,7 @@
 
             <section class="card dashboard-section">
                 <div class="section-heading"><div><h2>Batas de encaje por atender</h2><p>Solicitadas o recibidas</p></div><a routerLink="/batas-encaje">Ver todas</a></div>
-                @if (batasPorAtender().length) { <div class="dashboard-list">@for (bata of batasPorAtender(); track bata.id) { <a class="dashboard-row" [routerLink]="['/pedidos', bata.pedidoId]"><div><strong>{{ bata.pedidoFolio }}</strong><span>{{ bata.clienteNombre || 'Cliente no disponible' }}</span><small>{{ etiquetaBata(bata) }}</small></div><div class="row-meta"><span>{{ fechaCalendario(bata.fechaEvento) | date:'dd/MM/yyyy' }}</span><p-tag [value]="etiquetaEstatusBata(bata.estatusEncaje)" [severity]="bata.estatusEncaje === 'solicitada' ? 'danger' : 'warn'"></p-tag></div></a>}</div> } @else { <p class="empty-state">No hay batas pendientes.</p> }
+                @if (batasPorAtender().length) { <div class="dashboard-list">@for (bata of batasPorAtender(); track bata.id) { <a class="dashboard-row" [routerLink]="['/pedidos', bata.pedidoId]"><div><strong>{{ bata.pedidoFolio }}</strong><span>{{ bata.clienteNombre || 'Cliente no disponible' }}</span><small>{{ etiquetaBata(bata) }}</small></div><div class="row-meta"><span>{{ fechaCalendario(bata.fechaEvento) | date:'dd/MM/yyyy' }}</span><p-tag [value]="etiquetaEstatusBata(bata.estatusEncaje)" [severity]="bata.estatusEncaje === 'SOLICITADA' ? 'danger' : 'warn'"></p-tag></div></a>}</div> } @else { <p class="empty-state">No hay batas pendientes.</p> }
             </section>
         </div>
 

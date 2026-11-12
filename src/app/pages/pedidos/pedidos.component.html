@@ -21,19 +21,19 @@
         <article class="kpi-card">
             <span class="kpi-icon amber"><i class="pi pi-sync"></i></span>
             <div>
-                <small>En proceso</small><strong>{{ contarEstatus('en_proceso') }}</strong>
+                <small>En producción</small><strong>{{ contarEstatus('EN_PRODUCCION') }}</strong>
             </div>
         </article>
         <article class="kpi-card">
             <span class="kpi-icon green"><i class="pi pi-check-circle"></i></span>
             <div>
-                <small>Listos</small><strong>{{ contarEstatus('listo') }}</strong>
+                <small>Salieron de producción</small><strong>{{ contarEstatus('SALIO_DE_PRODUCCION') }}</strong>
             </div>
         </article>
         <article class="kpi-card">
             <span class="kpi-icon violet"><i class="pi pi-send"></i></span>
             <div>
-                <small>Entregados</small><strong>{{ contarEstatus('entregado') }}</strong>
+                <small>Entregados</small><strong>{{ contarEstatus('ENTREGADO') }}</strong>
             </div>
         </article>
     </section>
@@ -88,6 +88,7 @@
                 ><tr>
                     <th pSortableColumn="folio">Folio <p-sortIcon field="folio"></p-sortIcon></th>
                     <th pSortableColumn="clienteNombre">Cliente <p-sortIcon field="clienteNombre"></p-sortIcon></th>
+                    <th pSortableColumn="terminacionContacto">Terminación <p-sortIcon field="terminacionContacto"></p-sortIcon></th>
                     <th pSortableColumn="fechaEvento">Fecha del evento <p-sortIcon field="fechaEvento"></p-sortIcon></th>
                     <th>Faltan</th>
                     <th>Batas</th>
@@ -103,6 +104,9 @@
                 ><tr [class.has-additional-row]="pedido.cantidadAdicionales > 0">
                     <td>
                         <a class="folio-link" [routerLink]="['/pedidos', pedido.id]">{{ pedido.folio }}</a>
+                        @if (pedido.esUrgente === true) {
+                            <p-tag class="urgent-indicator" value="URGENTE" severity="danger"></p-tag>
+                        }
                         @if (pedido.cantidadAdicionales > 0) {
                             <p-tag class="additional-indicator" [value]="nombreAdicionales(pedido)" severity="info"></p-tag>
                         }
@@ -111,6 +115,7 @@
                         <strong>{{ pedido.clienteNombre }}</strong
                         ><small class="cell-subtitle">{{ pedido.tipoCliente }}</small>
                     </td>
+                    <td>{{ pedido.terminacionContacto || '—' }}</td>
                     <td>{{ fecha(pedido.fechaEvento) | date: 'dd/MM/yyyy' }}</td>
                     <td class="days-cell"><p-tag [value]="urgenciaEvento(pedido).texto" [severity]="urgenciaEvento(pedido).severity"></p-tag></td>
                     <td>{{ pedido.cantidadBatas }}</td>
@@ -118,12 +123,18 @@
                     <td class="money">{{ pedido.total | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</td>
                     <td>{{ pedido.anticipo | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</td>
                     <td class="remaining-money">{{ pedido.restante | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</td>
-                    <td><p-tag [value]="formatoEstatus(pedido.estatus)" [severity]="severidad(pedido.estatus)"></p-tag></td>
+                    <td>
+                        @if (pedido.estatus === 'SITUACION') {
+                            <span class="estatus-situacion-tooltip" [pTooltip]="pedido.observaciones?.trim() || 'Este pedido requiere atención.'" tooltipPosition="top" tooltipStyleClass="situation-tooltip"><p-tag [value]="formatoEstatus(pedido.estatus)" [severity]="severidad(pedido.estatus)"></p-tag></span>
+                        } @else {
+                            <p-tag [value]="formatoEstatus(pedido.estatus)" [severity]="severidad(pedido.estatus)"></p-tag>
+                        }
+                    </td>
                     <td><p-button type="button" icon="pi pi-ellipsis-v" severity="secondary" [text]="true" [rounded]="true" ariaLabel="Acciones del pedido" (pointerdown)="abrirAcciones($event, pedido, actionsMenu)"></p-button></td></tr
             ></ng-template>
             <ng-template #emptymessage
                 ><tr>
-                    <td colspan="11">
+                    <td colspan="12">
                         <div class="empty-state">
                             <i class="pi pi-inbox"></i>
                             <h3>No encontramos pedidos</h3>
@@ -147,6 +158,7 @@
                     <p-tag class="additional-indicator mobile-additional-indicator" [value]="nombreAdicionales(pedido)" severity="info"></p-tag>
                 }
                 <span class="mobile-evento">Evento: {{ fecha(pedido.fechaEvento) | date: 'dd/MM/yyyy' }}</span
+                ><span class="mobile-evento">Terminación: {{ pedido.terminacionContacto || '—' }}</span
                 ><span class="mobile-faltan">Faltan: <p-tag [value]="urgenciaEvento(pedido).texto" [severity]="urgenciaEvento(pedido).severity"></p-tag></span>
                 <div class="mobile-money">
                     <div>
@@ -184,7 +196,7 @@
         <ng-template #footer>
             <p-button label="Cerrar" severity="secondary" [text]="true" (onClick)="mostrarDocumento.set(false)"></p-button>
             <p-button label="Imprimir" icon="pi pi-print" severity="secondary" [outlined]="true" (onClick)="avisoDocumento('imprimir')"></p-button>
-            <p-button label="Descargar PDF" icon="pi pi-download" (onClick)="avisoDocumento('pdf')"></p-button>
+            <p-button [label]="generandoPdf() ? 'Generando...' : 'Descargar PDF'" icon="pi pi-download" [loading]="generandoPdf()" [disabled]="generandoPdf()" (onClick)="descargarPdf()"></p-button>
         </ng-template>
     </p-dialog>
     <p-dialog header="¿Qué deseas incluir?" [visible]="mostrarAlcanceDocumento()" (visibleChange)="mostrarAlcanceDocumento.set($event)" [modal]="true" [draggable]="false" [style]="{ width: 'min(92vw, 34rem)' }">
@@ -235,7 +247,7 @@
             }
         </div>
     </p-dialog>
-    <p-dialog header="Cambiar estatus" [(visible)]="mostrarEstatus" [modal]="true" [draggable]="false" [style]="{ width: 'min(92vw, 28rem)' }">
+    <p-dialog header="Cambiar estatus" [visible]="mostrarEstatus" (visibleChange)="cerrarCambioEstatus($event)" [modal]="true" [draggable]="false" [style]="{ width: 'min(92vw, 28rem)' }">
         <div class="status-dialog">
             <p>
                 Actualiza el estado de <strong>{{ pedidoSeleccionado?.folio }}</strong> en esta sesión.
@@ -246,7 +258,11 @@
                     <option [value]="estatus">{{ formatoEstatus(estatus) }}</option>
                 }
             </select>
-            <div class="dialog-actions"><p-button label="Cancelar" severity="secondary" [text]="true" (onClick)="mostrarEstatus = false"></p-button><p-button label="Guardar estatus" icon="pi pi-check" (onClick)="guardarEstatus()"></p-button></div>
+            @if (nuevoEstatus === 'SITUACION') {
+                <label for="observacionesEstatus">Motivo de la situación <span>*</span></label>
+                <textarea pTextarea id="observacionesEstatus" [(ngModel)]="observacionesEstatus" rows="4" placeholder="Describe el motivo o complicación del pedido" [attr.aria-invalid]="motivoSituacionInvalido()"></textarea>
+            }
+            <div class="dialog-actions"><p-button label="Cancelar" severity="secondary" [text]="true" (onClick)="cerrarCambioEstatus(false)"></p-button><p-button label="Guardar estatus" icon="pi pi-check" [disabled]="motivoSituacionInvalido()" (onClick)="guardarEstatus()"></p-button></div>
         </div>
     </p-dialog>
 </div>

@@ -27,8 +27,9 @@
 }
 
 .document-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
     padding-bottom: 1rem;
     border-bottom: 3px solid #e1b95b;
 }
@@ -52,6 +53,23 @@
     font-size: 0.58rem;
     font-weight: 700;
     letter-spacing: 0.45em;
+}
+
+.urgent-mark {
+    padding: 0.35rem 0.65rem;
+    border: 2px solid #b42318;
+    border-radius: 0.35rem;
+    color: #b42318;
+    background: #fff1f0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-align: center;
+}
+
+.urgent-mark.is-hidden {
+    visibility: hidden;
 }
 
 .document-title {
@@ -134,14 +152,29 @@
     min-width: 760px;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 0.68rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
 }
 
 .document-table th,
 .document-table td {
-    padding: 0.55rem 0.42rem;
+    padding: 0.62rem 0.45rem;
     border: 1px solid #d5dbe1;
-    vertical-align: top;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+}
+
+.document-table td.quantity-cell {
+    width: 4.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.embroidery-cell {
+    white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
@@ -162,7 +195,7 @@
 .document-table th {
     background: #f8f3e7;
     color: #5c4a24;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 700;
     text-align: left;
     text-transform: uppercase;

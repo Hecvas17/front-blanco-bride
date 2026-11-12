@@ -30,11 +30,11 @@ export class HomeComponent {
 
     readonly pedidosAbiertos = computed(() => this.pedidos().filter((pedido) => !this.esCerrado(pedido)).length);
     readonly urgentes = computed(() => this.pedidos().filter((pedido) => !this.esCerrado(pedido) && this.urgencia(pedido).dias >= 0 && this.urgencia(pedido).dias < 10).length);
-    readonly batasPendientes = computed(() => this.batasEncaje().filter((bata) => bata.estatusEncaje === 'solicitada' || bata.estatusEncaje === 'ya_llego').length);
-    readonly pedidosListos = computed(() => this.pedidos().filter((pedido) => pedido.estatus === 'listo').length);
+    readonly batasPendientes = computed(() => this.batasEncaje().filter((bata) => bata.estatusEncaje === 'SOLICITADA' || bata.estatusEncaje === 'YA_LLEGO' || bata.estatusEncaje === 'EN_PRODUCCION').length);
+    readonly pedidosListos = computed(() => this.pedidos().filter((pedido) => pedido.estatus === 'SALIO_DE_PRODUCCION').length);
 
     readonly proximosEventos = computed(() => this.pedidos().filter((pedido) => !this.esCerrado(pedido) && this.urgencia(pedido).dias >= 0).sort((a, b) => this.fechaCalendario(a.fechaEvento).getTime() - this.fechaCalendario(b.fechaEvento).getTime()).slice(0, 6));
-    readonly batasPorAtender = computed(() => this.batasEncaje().filter((bata) => bata.estatusEncaje === 'solicitada' || bata.estatusEncaje === 'ya_llego').sort((a, b) => this.prioridadBata(a.estatusEncaje) - this.prioridadBata(b.estatusEncaje) || this.fechaCalendario(a.fechaEvento).getTime() - this.fechaCalendario(b.fechaEvento).getTime()).slice(0, 6));
+    readonly batasPorAtender = computed(() => this.batasEncaje().filter((bata) => bata.estatusEncaje === 'SOLICITADA' || bata.estatusEncaje === 'YA_LLEGO' || bata.estatusEncaje === 'EN_PRODUCCION').sort((a, b) => this.prioridadBata(a.estatusEncaje) - this.prioridadBata(b.estatusEncaje) || this.fechaCalendario(a.fechaEvento).getTime() - this.fechaCalendario(b.fechaEvento).getTime()).slice(0, 6));
     readonly pedidosRecientes = computed(() => [...this.pedidos()].sort((a, b) => this.fechaCreacion(b.creadoEn).getTime() - this.fechaCreacion(a.creadoEn).getTime()).slice(0, 6));
 
     constructor() { this.cargar(); }
@@ -51,16 +51,16 @@ export class HomeComponent {
     urgencia(pedido: Pedido): UrgenciaEvento { return getUrgenciaEvento(pedido.fechaEvento, pedido.estatus); }
 
     etiquetaEstatus(estatus: PedidoEstatus): string {
-        return ({ borrador: 'Borrador', confirmado: 'Confirmado', en_proceso: 'En proceso', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado' } as const)[estatus];
+        return ({ EN_PRODUCCION: 'En producción', SALIO_DE_PRODUCCION: 'Salió de producción', POR_LIQUIDAR: 'Por liquidar', GENERAR_GUIA: 'Generar guía', EN_TRANSITO: 'En tránsito', ENTREGADO: 'Entregado', SITUACION: 'Situación' } as const)[estatus];
     }
 
     severidadEstatus(estatus: PedidoEstatus): 'secondary' | 'info' | 'warn' | 'success' | 'danger' {
-        return ({ borrador: 'secondary', confirmado: 'info', en_proceso: 'warn', listo: 'success', entregado: 'secondary', cancelado: 'danger' } as const)[estatus];
+        return ({ EN_PRODUCCION: 'info', SALIO_DE_PRODUCCION: 'info', POR_LIQUIDAR: 'warn', GENERAR_GUIA: 'success', EN_TRANSITO: 'info', ENTREGADO: 'success', SITUACION: 'danger' } as const)[estatus];
     }
 
     etiquetaBata(bata: BataEncaje): string { return bata.tipoEncajeNombre ?? bata.tipoEncajeId.replaceAll('_', ' '); }
 
-    etiquetaEstatusBata(estatus: EstatusEncaje): string { return ({ solicitada: 'Solicitada', ya_llego: 'Ya llegó', lista: 'Lista' } as const)[estatus]; }
+    etiquetaEstatusBata(estatus: EstatusEncaje): string { return ({ SIN_SOLICITAR: 'Sin solicitar', SOLICITADA: 'Solicitada', YA_LLEGO: 'Ya llegó', EN_PRODUCCION: 'En producción', LISTA: 'Lista' } as const)[estatus]; }
 
     fechaCalendario(value: Date | string | null): Date {
         if (!value) return new Date(NaN);
@@ -73,6 +73,6 @@ export class HomeComponent {
 
     fechaCreacion(value: Date | string): Date { return value instanceof Date ? value : new Date(value); }
 
-    private esCerrado(pedido: Pedido): boolean { return pedido.estatus === 'entregado' || pedido.estatus === 'cancelado'; }
-    private prioridadBata(estatus: EstatusEncaje): number { return estatus === 'solicitada' ? 0 : 1; }
+    private esCerrado(pedido: Pedido): boolean { return pedido.estatus === 'ENTREGADO'; }
+    private prioridadBata(estatus: EstatusEncaje): number { return estatus === 'SOLICITADA' ? 0 : estatus === 'YA_LLEGO' ? 1 : 2; }
 }

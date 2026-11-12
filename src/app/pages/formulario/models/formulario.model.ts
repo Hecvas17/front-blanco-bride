@@ -2,7 +2,8 @@ export type TipoCliente = 'Novia' | 'Quinceañera' | 'Negocio' | 'Otro';
 export type TipoBata = 'adulto' | 'infantil' | 'encaje';
 export type EstatusProveedorProducto = 'pendiente' | 'por_solicitar' | 'solicitado' | 'en_produccion' | 'listo_proveedor' | 'recibido' | 'cancelado';
 export type TipoProductoAdicional = 'bata_encaje' | 'toalla' | 'panuelo' | 'panuelo_mascota' | 'pantuflas' | 'playera_hombre' | 'pantalon';
-export type EstatusBataEncaje = 'solicitada' | 'ya_llego' | 'lista';
+export type EstatusBataEncaje = 'SIN_SOLICITAR' | 'SOLICITADA' | 'YA_LLEGO' | 'EN_PRODUCCION' | 'LISTA';
+export type AlineacionBordado = 'IZQUIERDA' | 'CENTRO' | 'DERECHA';
 
 export interface Cliente {
     id: string;
@@ -19,11 +20,15 @@ export interface CatalogoOpcion {
 
 export interface PersonalizacionBata {
     idTemporal: string;
+    grupoProductoId?: string | null;
+    piezasIds?: string[];
+    cantidad: number;
     tipo: TipoBata;
     colorId: string | null;
     tallaId: string | null;
     bordadoFrontal: string;
     bordadoPosterior: string;
+    alineacionBordado?: AlineacionBordado;
     colorBordadoId: string | null;
     precio: number;
     observaciones: string;
@@ -51,6 +56,8 @@ export interface ComplementoPedido {
 export type ProductoAdicionalPedido = ComplementoPedido & {
     tipo: TipoProductoAdicional;
     idTemporal: string;
+    grupoProductoId?: string | null;
+    piezasIds?: string[];
     proveedorId: string | null;
     estatusProveedor: EstatusProveedorProducto;
     tipoEncajeId?: string | null;
@@ -69,6 +76,7 @@ export interface ArchivoReferencia {
 }
 
 export interface FormularioPedido {
+    esUrgente: boolean;
     clienteId: string | null;
     clienteNombre: string;
     fechaEvento: Date | null;
@@ -84,9 +92,11 @@ export interface FormularioPedido {
     dualTexto: string | null;
     detallesComplementos: string;
     referencias: ArchivoReferencia[];
+    referenciasPersistidas?: Array<{ id: string; nombre: string; tipo: string }>;
 }
 
 export const pedidoInicial = (): FormularioPedido => ({
+    esUrgente: false,
     clienteId: null,
     clienteNombre: '',
     fechaEvento: null,

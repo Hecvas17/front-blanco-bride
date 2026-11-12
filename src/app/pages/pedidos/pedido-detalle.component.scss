@@ -312,3 +312,8 @@
         grid-template-columns: 1fr 1fr;
     }
 }
+.situacion-alerta { display: flex; align-items: flex-start; gap: .75rem; margin: 0 0 1.25rem; padding: 1rem 1.25rem; border: 1px solid #f4d35e; border-left: 5px solid #e0a800; border-radius: 10px; background: #fff8db; color: #5f4b00; }
+.situacion-alerta > i { flex: 0 0 auto; margin-top: .1rem; color: #b98500; font-size: 1.15rem; }
+.situacion-alerta strong { display: block; color: #7a5b00; font-weight: 700; }
+.situacion-alerta p { margin: .35rem 0 0; color: #5f4b00; white-space: pre-wrap; overflow-wrap: anywhere; }
+.embroidery-value { white-space: pre-wrap; overflow-wrap: anywhere; }

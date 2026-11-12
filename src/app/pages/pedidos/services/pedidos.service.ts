@@ -1,10 +1,17 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, defer, map, switchMap } from 'rxjs';
+import { Observable, defer, from, map, switchMap, concatMap, defaultIfEmpty } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { EstatusProveedorProducto, FormularioPedido } from '../../formulario/models/formulario.model';
 import { Pedido, PedidoAdicional, PedidoEstatus, PedidoProductoAdicional } from '../models/pedido.model';
+import { EstatusPedidoEncaje } from '../../batas-encaje/models/bata-encaje.model';
 import { CrearProductoRequest, mapApiAdditionalProductToComplemento, mapApiPedidoToViewModel, mapApiProductToViewModel, mapFormularioToCrearPedidoRequest } from '../api/pedido-api.adapter';
+
+export interface ProductoEdicionOriginal {
+    piezaIds: string[];
+    cantidad: number;
+    payload: CrearProductoRequest;
+}
 
 @Injectable({ providedIn: 'root' })
 export class PedidosService {
@@ -23,8 +30,8 @@ export class PedidosService {
     actualizarPedido(id: string, cambios: unknown): Observable<Pedido> {
         return this.http.patch<any>(`${this.apiUrl}/pedidos/${id}`, cambios).pipe(map(mapApiPedidoToViewModel));
     }
-    actualizarEstatus(id: string, estatus: PedidoEstatus): Observable<Pedido | undefined> {
-        return this.http.patch<any>(`${this.apiUrl}/pedidos/${id}/estatus`, { estatus }).pipe(switchMap(() => this.getPedidoById(id)));
+    actualizarEstatus(id: string, estatus: PedidoEstatus, estatusPedidoEncaje?: EstatusPedidoEncaje, observaciones?: string): Observable<Pedido | undefined> {
+        return this.http.patch<any>(`${this.apiUrl}/pedidos/${id}/estatus`, { estatus, estatusPedidoEncaje, observaciones }).pipe(switchMap(() => this.getPedidoById(id)));
     }
 
     crearProducto(pedidoId: string, producto: CrearProductoRequest): Observable<PedidoProductoAdicional> {
@@ -32,6 +39,25 @@ export class PedidosService {
     }
     actualizarProducto(pedidoId: string, productoId: string, producto: CrearProductoRequest): Observable<PedidoProductoAdicional> {
         return this.http.patch<any>(`${this.apiUrl}/pedidos/${pedidoId}/productos/${productoId}`, producto).pipe(map(mapApiProductToViewModel));
+    }
+    sincronizarProductosOriginales(pedidoId: string, productos: ProductoEdicionOriginal[], idsAEliminar: string[]): Observable<void> {
+        const operaciones: Observable<unknown>[] = [];
+        const idsConservados = new Set<string>();
+        productos.forEach((producto) => {
+            const existentes = producto.piezaIds.slice(0, producto.cantidad);
+            existentes.forEach((productoId) => {
+                idsConservados.add(productoId);
+                operaciones.push(this.actualizarProducto(pedidoId, productoId, { ...producto.payload, cantidad: 1 }));
+            });
+            const faltantes = producto.cantidad - existentes.length;
+            if (faltantes > 0) operaciones.push(this.crearProducto(pedidoId, { ...producto.payload, cantidad: faltantes }));
+            producto.piezaIds.slice(producto.cantidad).forEach((productoId) => {
+                idsAEliminar.push(productoId);
+            });
+        });
+        const eliminaciones = idsAEliminar.filter((id) => !idsConservados.has(id)).map((id) => this.eliminarProducto(pedidoId, id));
+        operaciones.push(...eliminaciones);
+        return from(operaciones).pipe(concatMap((operacion) => operacion), defaultIfEmpty(undefined), map(() => undefined));
     }
     eliminarProducto(pedidoId: string, productoId: string) {
         return this.http.delete<void>(`${this.apiUrl}/pedidos/${pedidoId}/productos/${productoId}`);

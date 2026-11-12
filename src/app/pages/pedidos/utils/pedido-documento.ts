@@ -1,4 +1,6 @@
+import { AlineacionBordado } from '../../formulario/models/formulario.model';
 import { Pedido, PedidoAdicional, PedidoAdicionalProducto, PedidoComplemento, PedidoProductoAdicional } from '../models/pedido.model';
+import { agruparProductosVisualmente, claveVisual } from './productos-agrupacion';
 
 export type PedidoDocumentoTipo = 'cliente' | 'produccion';
 
@@ -6,6 +8,7 @@ export interface LineaDocumentoPedido {
     cantidad: number;
     articulo: string;
     textoBordado: string;
+    alineacionBordado?: AlineacionBordado;
     color: string;
     colorTexto: string;
     talla: string;
@@ -25,16 +28,21 @@ export interface PedidoDocumentoViewModel {
 }
 
 export function adaptarPedidoADocumento(pedido: Pedido): PedidoDocumentoViewModel {
-    const batas: LineaDocumentoPedido[] = pedido.personalizaciones.map((bata) => ({
-        cantidad: 1,
-        articulo: bata.tipo === 'infantil' ? 'Bata infantil' : 'Bata',
-        textoBordado: textoBordado(bata.bordadoFrontal, bata.bordadoPosterior),
-        color: bata.color || '—',
-        colorTexto: bata.colorBordado || '—',
-        talla: bata.talla || '—',
-        observacion: bata.observaciones || '—',
-        subtotal: bata.precio
-    }));
+    const batas: LineaDocumentoPedido[] = agruparProductosVisualmente(pedido.personalizaciones, (bata) => claveVisual(bata.tipo, bata.color, bata.talla, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorBordado, bata.alineacionBordado, bata.observaciones, bata.proveedorId)).map((grupo) => {
+        const bata = grupo.productoRepresentativo;
+        const articulo = bata.tipo === 'infantil' ? 'Bata infantil' : 'Bata';
+        return {
+            cantidad: grupo.cantidad,
+            articulo,
+            textoBordado: textoBordado(bata.bordadoFrontal, bata.bordadoPosterior),
+            alineacionBordado: bata.alineacionBordado,
+            color: bata.color || '—',
+            colorTexto: bata.colorBordado || '—',
+            talla: bata.talla || '—',
+            observacion: bata.observaciones || '—',
+            subtotal: bata.precio * grupo.cantidad
+        };
+    });
 
     const complementos: LineaDocumentoPedido[] = pedido.complementos.map((complemento) => ({
         cantidad: complemento.cantidad,
@@ -46,7 +54,7 @@ export function adaptarPedidoADocumento(pedido: Pedido): PedidoDocumentoViewMode
         observacion: observacionComplemento(complemento),
         subtotal: complemento.cantidad * complemento.precio
     }));
-    const productosAdicionales: LineaDocumentoPedido[] = pedido.productosAdicionales.map((producto) => adaptarProductoPedido(producto));
+    const productosAdicionales: LineaDocumentoPedido[] = agruparProductosVisualmente(pedido.productosAdicionales, (producto) => claveVisual(producto.tipo, producto.colorNombre, producto.colorProductoId, producto.tallaNombre, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoNombre, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId)).map((grupo) => adaptarProductoPedido(grupo.productoRepresentativo, grupo.cantidad));
 
     return {
         lineas: [...batas, ...productosAdicionales, ...complementos],
@@ -59,32 +67,33 @@ export function adaptarPedidoADocumento(pedido: Pedido): PedidoDocumentoViewMode
 }
 
 export function adaptarAdicionalADocumento(adicional: PedidoAdicional): LineaDocumentoPedido[] {
-    return adicional.productos.map((producto) => adaptarProductoAdicional(producto));
+    return agruparProductosVisualmente(adicional.productos, (producto) => claveVisual(producto.tipo, producto.nombre, producto.colorNombre, producto.color, producto.tallaNombre, producto.talla, producto.texto, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId)).map((grupo) => adaptarProductoAdicional(grupo.productoRepresentativo, grupo.cantidad));
 }
 
-function adaptarProductoAdicional(producto: PedidoAdicionalProducto): LineaDocumentoPedido {
+function adaptarProductoAdicional(producto: PedidoAdicionalProducto, cantidad: number): LineaDocumentoPedido {
     return {
-        cantidad: producto.cantidad,
+        cantidad,
         articulo: producto.tipo === 'bata_encaje' ? 'Bata de encaje' : producto.nombre || articuloLegible(producto.tipo),
         textoBordado: producto.texto || '—',
+        alineacionBordado: producto.alineacionBordado,
         color: producto.colorNombre || producto.color || '—',
         colorTexto: '—',
         talla: producto.tallaNombre || producto.talla || '—',
         observacion: producto.tipo === 'bata_encaje' ? `Tipo de encaje: ${tipoEncajeLegible(producto.tipoEncajeId)}${producto.observaciones ? ` · ${producto.observaciones}` : ''}` : producto.observaciones || '—',
-        subtotal: producto.cantidad * producto.precio
+        subtotal: cantidad * producto.precio
     };
 }
 
-function adaptarProductoPedido(producto: PedidoProductoAdicional): LineaDocumentoPedido {
+function adaptarProductoPedido(producto: PedidoProductoAdicional, cantidad: number): LineaDocumentoPedido {
     return {
-        cantidad: producto.cantidad,
+        cantidad,
         articulo: articuloProducto(producto.tipo, producto.tipoEncajeNombre),
         textoBordado: '—',
         color: producto.colorNombre || etiquetaId(producto.colorProductoId),
         colorTexto: '—',
         talla: producto.tallaNombre || etiquetaId(producto.tallaId),
         observacion: producto.tipo === 'bata_encaje' ? `Tipo de encaje: ${producto.tipoEncajeNombre || tipoEncajeLegible(producto.tipoEncajeId)}${producto.observaciones ? ` · ${producto.observaciones}` : ''}` : producto.observaciones || '—',
-        subtotal: producto.cantidad * producto.precio
+        subtotal: cantidad * producto.precio
     };
 }
 
@@ -102,8 +111,8 @@ function etiquetaId(value?: string | null): string {
 }
 
 function textoBordado(frontal: string, posterior: string): string {
-    const textos = [frontal && `Frontal: ${frontal}`, posterior && `Posterior: ${posterior}`].filter(Boolean);
-    return textos.length ? textos.join(' · ') : '—';
+    const textos = [frontal, posterior].filter((texto) => texto.length > 0);
+    return textos.length ? textos.join('\n') : '—';
 }
 
 function articuloLegible(nombre: string): string {

@@ -4,6 +4,7 @@
             <span class="brand-script">Blanco</span>
             <span class="brand-subtitle">BRIDE</span>
         </div>
+        <div class="urgent-mark" [class.is-hidden]="!pedido.esUrgente" aria-live="polite">URGENTE</div>
         <div class="document-title">
             <span>{{ tituloDocumento }}</span>
             <strong>PEDIDO #{{ pedido.folio }}</strong>
@@ -26,7 +27,7 @@
         </div>
         <div>
             <span>TERMINACIÓN</span>
-            <strong>{{ pedido.ubicacion || '—' }}</strong>
+            <strong>{{ pedido.terminacionContacto || '—' }}</strong>
         </div>
         <div>
             <span>HOJA</span>
@@ -48,8 +49,8 @@
                         <tr>
                             <th>Cant.</th>
                             <th>Artículo</th>
-                            <th>Texto que se borda</th>
                             <th>Color</th>
+                            <th>Texto que se borda</th>
                             <th>Color texto</th>
                             <th>Talla</th>
                             <th>Observación</th>
@@ -61,12 +62,12 @@
                     <tbody>
                         @for (linea of seccion.lineas; track $index) {
                             <tr>
-                                <td>{{ linea.cantidad }}</td>
+                                <td class="quantity-cell">{{ linea.cantidad }}</td>
                                 <td>
                                     <strong>{{ linea.articulo }}</strong>
                                 </td>
-                                <td>{{ linea.textoBordado }}</td>
                                 <td>{{ linea.color }}</td>
+                                <td class="embroidery-cell" [style.text-align]="alineacionCss(linea.alineacionBordado)">{{ linea.textoBordado }}</td>
                                 <td>{{ linea.colorTexto }}</td>
                                 <td>{{ linea.talla }}</td>
                                 <td>{{ linea.observacion }}</td>

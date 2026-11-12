@@ -1,6 +1,7 @@
 import { dateToApiDate } from '../../../core/api/api-date';
-import { FormularioPedido, PersonalizacionBata, ProductoAdicionalPedido, EstatusProveedorProducto } from '../../formulario/models/formulario.model';
+import { AlineacionBordado, FormularioPedido, PersonalizacionBata, ProductoAdicionalPedido, EstatusProveedorProducto } from '../../formulario/models/formulario.model';
 import { Pedido, PedidoAdicional, PedidoComplemento, PedidoPersonalizacion, PedidoProductoAdicional } from '../models/pedido.model';
+import { agruparProductosVisualmente, claveVisual } from '../utils/productos-agrupacion';
 
 export interface CrearProductoRequest {
     tipo: string;
@@ -14,6 +15,7 @@ export interface CrearProductoRequest {
     texto?: string;
     bordadoFrontal?: string;
     bordadoPosterior?: string;
+    alineacionBordado?: AlineacionBordado;
     observaciones?: string;
     tipoEncajeId?: string;
     estatusBataEncaje?: string;
@@ -22,6 +24,7 @@ export interface CrearProductoRequest {
 }
 
 export interface CrearPedidoRequest {
+    esUrgente: boolean;
     clienteId: string | null;
     clienteNombre: string;
     fechaEvento: string;
@@ -33,6 +36,20 @@ export interface CrearPedidoRequest {
     tipografiaId: string;
     dualTexto: string;
     productos: CrearProductoRequest[];
+}
+
+export interface ActualizarPedidoRequest {
+    clienteId?: string | null;
+    clienteNombre?: string;
+    fechaEvento?: string;
+    ubicacion?: string;
+    terminacionContacto?: string;
+    tipoCliente?: string;
+    tipoClienteOtro?: string | null;
+    anticipo?: number;
+    tipografiaId?: string | null;
+    dualTexto?: string;
+    esUrgente?: boolean;
 }
 
 const upperEnum = (value: string | null | undefined): string | undefined => (value ? value.toUpperCase() : undefined);
@@ -54,6 +71,8 @@ const tipoProducto = (tipo: string): string =>
         playera_hombre: 'PLAYERA_HOMBRE'
     })[tipo] ?? tipo.toUpperCase();
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+const normalizarEstatusPedido = (value: unknown): Pedido['estatus'] => String(value ?? '').trim().toUpperCase() as Pedido['estatus'];
+const normalizarBooleano = (value: unknown): boolean => value === true || value === 1 || value === 'true';
 
 export function mapFormularioToCrearPedidoRequest(formulario: FormularioPedido): CrearPedidoRequest {
     const batas: CrearProductoRequest[] = formulario.personalizaciones.map((bata) => mapBata(bata));
@@ -63,6 +82,7 @@ export function mapFormularioToCrearPedidoRequest(formulario: FormularioPedido):
         .map((item) => mapComplemento(item))
         .filter((item): item is CrearProductoRequest => item !== null);
     const request: CrearPedidoRequest = {
+        esUrgente: Boolean(formulario.esUrgente),
         clienteId: formulario.clienteId,
         clienteNombre: formulario.clienteNombre,
         fechaEvento: dateToApiDate(formulario.fechaEvento) ?? '',
@@ -79,10 +99,26 @@ export function mapFormularioToCrearPedidoRequest(formulario: FormularioPedido):
     return request;
 }
 
+export function mapFormularioToActualizarPedidoRequest(formulario: FormularioPedido): ActualizarPedidoRequest {
+    return {
+        clienteId: formulario.clienteId,
+        clienteNombre: formulario.clienteNombre,
+        fechaEvento: dateToApiDate(formulario.fechaEvento) ?? undefined,
+        ubicacion: formulario.ubicacion,
+        terminacionContacto: formulario.terminacionContacto,
+        tipoCliente: tipoCliente(formulario.tipoCliente),
+        tipoClienteOtro: formulario.tipoClienteOtro || null,
+        anticipo: formulario.anticipo,
+        tipografiaId: formulario.tipografiaId,
+        dualTexto: dual(formulario.dualTexto),
+        esUrgente: formulario.esUrgente
+    };
+}
+
 function mapBata(bata: PersonalizacionBata): CrearProductoRequest {
     return {
         tipo: tipoProducto(bata.tipo),
-        cantidad: 1,
+        cantidad: bata.cantidad,
         precioUnitario: bata.precio,
         proveedorId: bata.proveedorId ?? undefined,
         estatusProveedor: upperEnum(bata.estatusProveedor),
@@ -91,9 +127,10 @@ function mapBata(bata: PersonalizacionBata): CrearProductoRequest {
         colorTextoId: bata.colorBordadoId ?? undefined,
         bordadoFrontal: bata.bordadoFrontal,
         bordadoPosterior: bata.bordadoPosterior,
+        alineacionBordado: bata.alineacionBordado ?? 'CENTRO',
         observaciones: bata.observaciones,
         tipoEncajeId: bata.tipo === 'encaje' ? (bata.tipoBataId ?? undefined) : undefined,
-        estatusBataEncaje: bata.tipo === 'encaje' ? upperEnum('solicitada') : undefined
+        estatusBataEncaje: bata.tipo === 'encaje' ? upperEnum('SOLICITADA') : undefined
     };
 }
 
@@ -162,13 +199,15 @@ export function mapApiPedidoToViewModel(api: any): Pedido {
     return {
         id: api.id,
         folio: api.folio,
+        esUrgente: normalizarBooleano(api.esUrgente),
         clienteId: api.clienteId ?? null,
         clienteNombre: api.clienteNombre,
         fechaEvento: api.fechaEvento,
         tipoCliente: api.tipoCliente,
+        tipoClienteOtro: api.tipoClienteOtro ?? null,
         ubicacion: api.ubicacion,
         terminacionContacto: api.terminacionContacto,
-        cantidadBatas: api.cantidadBatas ?? personalizaciones.reduce((sum, item) => sum + 1, 0),
+        cantidadBatas: api.cantidadBatas ?? personalizaciones.reduce((sum, item) => sum + item.cantidad, 0),
         cantidadComplementos: api.cantidadComplementos ?? productosAdicionales.reduce((sum, item) => sum + item.cantidad, 0),
         cantidadAdicionales: api.cantidadAdicionales ?? api.adicionalesCount ?? api._count?.adicionales ?? api.adicionales?.length ?? 0,
         subtotalPersonalizaciones: api.totalOriginal ?? api.total ?? 0,
@@ -177,14 +216,17 @@ export function mapApiPedidoToViewModel(api: any): Pedido {
         total: api.total ?? api.totalOriginal ?? 0,
         anticipo: api.anticipo ?? 0,
         restante: api.restante ?? api.restanteOriginal ?? 0,
-        estatus: api.estatus,
+        estatus: normalizarEstatusPedido(api.estatus),
+        estatusPedidoEncaje: api.estatusPedidoEncaje ?? null,
+        observaciones: api.observaciones ?? '',
         creadoEn: api.creadoEn,
         actualizadoEn: api.actualizadoEn,
         personalizaciones,
         complementos: [],
         tipografia: api.tipografia?.nombre ?? api.tipografiaId ?? '',
+        tipografiaId: api.tipografiaId ?? api.tipografia?.id ?? null,
         dualTexto: api.dualTexto ?? '',
-        referencias: api.referencias ?? [],
+        referencias: (api.referencias ?? []).map((referencia: any) => ({ nombre: referencia.nombre ?? referencia.nombreArchivo ?? 'Referencia', tipo: referencia.tipo ?? referencia.tipoMime ?? 'Archivo' })),
         adicionales: adicionales.map(mapAdditional),
         productosAdicionales
     };
@@ -192,14 +234,22 @@ export function mapApiPedidoToViewModel(api: any): Pedido {
 
 function mapProductToAdditional(product: any): PedidoProductoAdicional {
     return {
+        id: product.id,
         idTemporal: product.id,
+        grupoProductoId: product.grupoProductoId ?? null,
         tipo: product.tipo,
-        cantidad: product.cantidad,
+        cantidad: product.cantidad ?? 1,
         precio: product.precioUnitario ?? 0,
         colorProductoId: product.colorId,
+        colorTextoId: product.colorTextoId,
         tallaId: product.tallaId,
         tipoEncajeId: product.tipoEncajeId,
         estatusBataEncaje: product.estatusBataEncaje,
+        tallaMascota: product.tallaMascota,
+        opcionPantufla: product.opcionPantufla,
+        bordadoFrontal: product.bordadoFrontal,
+        bordadoPosterior: product.bordadoPosterior,
+        alineacionBordado: product.alineacionBordado,
         texto: product.texto,
         observaciones: product.observaciones,
         proveedorId: product.proveedorId ?? '',
@@ -214,11 +264,18 @@ function mapProductToAdditional(product: any): PedidoProductoAdicional {
 function mapProductToPersonalizacion(product: PedidoProductoAdicional): PedidoPersonalizacion {
     return {
         id: product.idTemporal,
+        grupoProductoId: product.grupoProductoId ?? null,
+        colorId: product.colorProductoId,
+        tallaId: product.tallaId,
+        colorTextoId: product.colorTextoId,
+        tipoBataId: (product.tipo as string) === 'bata_infantil' ? 'infantil' : 'normal',
+        cantidad: product.cantidad,
         tipo: (product.tipo as string) === 'bata_infantil' ? 'infantil' : 'adulto',
         color: product.colorNombre ?? product.colorProductoId ?? '',
         talla: product.tallaNombre ?? product.tallaId ?? '',
-        bordadoFrontal: '',
-        bordadoPosterior: '',
+        bordadoFrontal: product.bordadoFrontal ?? '',
+        bordadoPosterior: product.bordadoPosterior ?? '',
+        alineacionBordado: product.alineacionBordado ?? 'CENTRO',
         colorBordado: product.colorTextoNombre ?? product.colorNombre ?? '',
         precio: product.precio,
         observaciones: product.observaciones ?? '',
@@ -240,6 +297,72 @@ function mapAdditional(api: any): PedidoAdicional {
 
 export function mapApiProductToViewModel(api: any): PedidoProductoAdicional {
     return mapProductToAdditional(api);
+}
+
+export function mapPedidoToFormulario(pedido: Pedido): FormularioPedido {
+    const personalizaciones = agruparProductosVisualmente(pedido.personalizaciones, (bata) => claveVisual(bata.tipo, bata.colorId, bata.tallaId, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorTextoId, bata.alineacionBordado, bata.observaciones, bata.proveedorId)).map((grupo) => {
+        const bata = grupo.productoRepresentativo;
+        return {
+            idTemporal: bata.id ?? `bata-${grupo.grupoProductoId ?? 'legacy'}`,
+            grupoProductoId: grupo.grupoProductoId,
+            piezasIds: grupo.piezas.map((pieza) => pieza.id).filter((id): id is string => Boolean(id)),
+            tipo: (bata.tipo === 'infantil' ? 'infantil' : 'adulto') as PersonalizacionBata['tipo'],
+            cantidad: grupo.cantidad,
+            tipoBataId: bata.tipoBataId ?? (bata.tipo === 'infantil' ? 'infantil' : 'normal'),
+            proveedorId: bata.proveedorId ?? null,
+            estatusProveedor: 'pendiente' as const,
+            colorId: bata.colorId ?? null,
+            tallaId: bata.tallaId ?? null,
+            bordadoFrontal: bata.bordadoFrontal,
+            bordadoPosterior: bata.bordadoPosterior,
+            alineacionBordado: bata.alineacionBordado ?? 'CENTRO',
+            colorBordadoId: bata.colorTextoId ?? null,
+            precio: bata.precio,
+            observaciones: bata.observaciones
+        };
+    });
+    const productosAdicionales = agruparProductosVisualmente(pedido.productosAdicionales, (producto) => claveVisual(producto.tipo, producto.colorProductoId, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeId, producto.tallaMascota, producto.opcionPantufla, producto.observaciones, producto.proveedorId)).map((grupo) => {
+        const producto = grupo.productoRepresentativo;
+        return {
+            complementoId: producto.idTemporal,
+            idTemporal: producto.idTemporal,
+            grupoProductoId: grupo.grupoProductoId,
+            piezasIds: grupo.piezas.map((pieza) => pieza.idTemporal).filter((id): id is string => Boolean(id)),
+            tipo: producto.tipo,
+            cantidad: grupo.cantidad,
+            precio: producto.precio,
+            proveedorId: producto.proveedorId ?? null,
+            estatusProveedor: producto.estatusProveedor,
+            texto: producto.texto ?? '',
+            observaciones: producto.observaciones ?? '',
+            colorProductoId: producto.colorProductoId ?? null,
+            colorTextoId: producto.colorTextoId ?? null,
+            tallaId: producto.tallaId ?? null,
+            tallaMascota: (producto.tallaMascota as ProductoAdicionalPedido['tallaMascota']) ?? null,
+            opcionPantufla: (producto.opcionPantufla as ProductoAdicionalPedido['opcionPantufla']) ?? null,
+            tipoEncajeId: producto.tipoEncajeId ?? null,
+            estatusBataEncaje: producto.estatusBataEncaje
+        };
+    });
+    return {
+        esUrgente: pedido.esUrgente,
+        clienteId: pedido.clienteId,
+        clienteNombre: pedido.clienteNombre,
+        fechaEvento: pedido.fechaEvento ? new Date(`${String(pedido.fechaEvento).slice(0, 10)}T00:00:00`) : null,
+        ubicacion: pedido.ubicacion,
+        terminacionContacto: pedido.terminacionContacto,
+        tipoCliente: ({ novia: 'Novia', quinceanera: 'Quinceañera', negocio: 'Negocio', otro: 'Otro' } as Record<string, FormularioPedido['tipoCliente']>)[pedido.tipoCliente] ?? null,
+        tipoClienteOtro: pedido.tipoClienteOtro ?? '',
+        anticipo: pedido.anticipo,
+        personalizaciones,
+        complementos: [],
+        productosAdicionales,
+        tipografiaId: pedido.tipografiaId ?? null,
+        dualTexto: ({ DUAL_CENTRADO: 'Dual Centrado', DUAL_LADO: 'Dual de Lado', NINGUNO: 'Ningún Dual' } as Record<string, string>)[pedido.dualTexto] ?? pedido.dualTexto,
+        detallesComplementos: pedido.detallesComplementos ?? '',
+        referencias: [],
+        referenciasPersistidas: pedido.referencias.map((referencia, index) => ({ id: `persistida-${index + 1}`, nombre: referencia.nombre, tipo: referencia.tipo }))
+    };
 }
 export function mapApiAdditionalProductToComplemento(api: any): PedidoComplemento {
     return { nombre: api.tipo, cantidad: api.cantidad, precio: api.precioUnitario ?? 0, proveedorId: api.proveedorId ?? '', estatusProveedor: api.estatusProveedor ?? 'pendiente' };

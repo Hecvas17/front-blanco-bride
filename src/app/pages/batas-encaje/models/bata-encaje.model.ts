@@ -1,6 +1,6 @@
 export type TipoEncaje = 'manga_encaje' | 'manga_holanes' | 'manga_encaje_largo' | 'manga_encaje_2';
-export type EstatusEncaje = 'solicitada' | 'ya_llego' | 'lista';
-export type EstatusPedidoEncaje = 'entregado' | 'transito' | 'en_produccion' | 'batas_normales_listas';
+export type EstatusEncaje = 'SIN_SOLICITAR' | 'SOLICITADA' | 'YA_LLEGO' | 'EN_PRODUCCION' | 'LISTA';
+export type EstatusPedidoEncaje = 'EN_PRODUCCION' | 'BATAS_NORMALES_LISTAS';
 
 export interface BataEncaje {
     id: string;
@@ -15,6 +15,7 @@ export interface BataEncaje {
     tipoEncajeNombre?: string | null;
     estatusEncaje: EstatusEncaje;
     estatusPedido: EstatusPedidoEncaje;
+    estatusPedidoPrincipal?: string | null;
     fechaEvento: Date | string | null;
     talla: string | null;
     color: string | null;

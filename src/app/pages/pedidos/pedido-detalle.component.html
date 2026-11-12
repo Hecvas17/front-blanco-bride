@@ -27,6 +27,9 @@
                 <span class="eyebrow">DETALLE DEL PEDIDO</span>
                 <div class="title-line">
                     <h1>{{ item.folio }}</h1>
+                        @if (item.esUrgente) {
+                            <p-tag value="Urgente" severity="danger"></p-tag>
+                        }
                     <p-tag [value]="formatoEstatus(item.estatus)" [severity]="severidad(item.estatus)"></p-tag>
                 </div>
                 <p>{{ item.clienteNombre }}</p>
@@ -37,6 +40,9 @@
                 ><p-button label="Imprimir" icon="pi pi-print" severity="secondary" [text]="true" (onClick)="imprimir()"></p-button>
             </div>
         </header>
+        @if (item.estatus === 'SITUACION') {
+            <section class="situacion-alerta"><i class="pi pi-exclamation-triangle"></i><div><strong>Situación del pedido</strong><p>{{ item.observaciones?.trim() || 'Este pedido requiere atención.' }}</p></div></section>
+        }
         <div class="detail-grid">
             <main>
                 <section class="detail-card">
@@ -66,10 +72,11 @@
                     <section class="detail-card">
                         <div class="section-heading"><h2>Productos</h2></div>
                         <div class="complements-detail">
-                            @for (producto of item.productosAdicionales; track producto.idTemporal) {
+                            @for (grupo of productosVisuales(); track grupo.productoRepresentativo.idTemporal) {
+                                @let producto = grupo.productoRepresentativo;
                                 <div class="complement-line">
-                                    <span>{{ producto.tipoEncajeNombre ? 'Bata de encaje' : producto.tipo }}</span><span>{{ producto.colorNombre || producto.colorProductoId || '—' }} · {{ producto.tallaNombre || producto.tallaId || '—' }} · {{ producto.tipoEncajeNombre || producto.tipoEncajeId || '—' }}</span
-                                    ><strong>{{ producto.cantidad * producto.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                    <span>{{ nombreProductoVisual(producto) }}{{ grupo.cantidad > 1 ? ' ×' + grupo.cantidad : '' }}</span><span>{{ producto.colorNombre || producto.colorProductoId || '—' }} · {{ producto.tallaNombre || producto.tallaId || '—' }} · {{ producto.tipoEncajeNombre || producto.tipoEncajeId || '—' }}</span
+                                    ><strong>{{ grupo.cantidad * producto.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
                                 </div>
                             }
                         </div>
@@ -91,10 +98,15 @@
                                 <article>
                                     <div>
                                         <strong>{{ adicional.folio }}</strong
-                                        ><small>{{ adicional.creadoEn | date: 'dd/MM/yyyy' }} · {{ adicional.productos.length }} producto(s)</small>
+                                        ><small>{{ adicional.creadoEn | date: 'dd/MM/yyyy' }} · {{ cantidadPiezasAdicional(adicional) }} pieza(s)</small>
                                     </div>
                                     <strong>{{ adicional.total | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
                                     <p-button label="Editar" icon="pi pi-pencil" severity="secondary" [text]="true" size="small" (onClick)="editarAdicional(adicional)"></p-button>
+                                    <div class="additional-products">
+                                        @for (grupo of productosAdicionalesVisuales(adicional); track grupo.productoRepresentativo.idTemporal; let i = $index) {
+                                            <span>{{ grupo.productoRepresentativo.nombre || grupo.productoRepresentativo.tipo }}{{ grupo.cantidad > 1 ? ' ×' + grupo.cantidad : '' }}</span>
+                                        }
+                                    </div>
                                 </article>
                             }
                         </div>
@@ -105,18 +117,19 @@
                 <section class="detail-card">
                     <div class="section-heading">
                         <h2>
-                            Personalizaciones <span>({{ item.personalizaciones.length }})</span>
+                                Personalizaciones <span>({{ cantidadPiezasPersonalizaciones() }})</span>
                         </h2>
                     </div>
                     <div class="bata-detail-grid">
-                        @for (bata of item.personalizaciones; track $index; let i = $index) {
+                        @for (grupo of personalizacionesVisuales(); track grupo.productoRepresentativo.id ?? $index; let i = $index) {
+                            @let bata = grupo.productoRepresentativo;
                             <article class="bata-detail">
                                 <div class="bata-detail-heading">
                                     <div>
-                                        <span class="card-kicker">BATA {{ i + 1 }}</span>
+                                        <span class="card-kicker">BATA {{ i + 1 }}{{ grupo.cantidad > 1 ? ' · ' + grupo.cantidad + ' PIEZAS' : '' }}</span>
                                         <h3>{{ bata.tipo === 'infantil' ? 'Bata infantil' : 'Bata adulto' }}</h3>
                                     </div>
-                                    <strong>{{ bata.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                    <strong>{{ grupo.cantidad * bata.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
                                 </div>
                                 <div class="mini-data">
                                     <div>
@@ -129,10 +142,10 @@
                                         <small>Color bordado</small><strong>{{ bata.colorBordado }}</strong>
                                     </div>
                                     <div>
-                                        <small>Frontal</small><strong>{{ bata.bordadoFrontal || '—' }}</strong>
+                                        <small>Frontal</small><strong class="embroidery-value" [style.text-align]="alineacionCss(bata.alineacionBordado)">{{ bata.bordadoFrontal || '—' }}</strong>
                                     </div>
                                     <div>
-                                        <small>Posterior</small><strong>{{ bata.bordadoPosterior || '—' }}</strong>
+                                        <small>Posterior</small><strong class="embroidery-value" [style.text-align]="alineacionCss(bata.alineacionBordado)">{{ bata.bordadoPosterior || '—' }}</strong>
                                     </div>
                                 </div>
                                 <p class="observation"><i class="pi pi-comment"></i>{{ bata.observaciones || 'Sin observaciones' }}</p>

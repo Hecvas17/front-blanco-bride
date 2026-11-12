@@ -150,6 +150,13 @@
 .folio-link:hover {
     text-decoration: underline;
 }
+.urgent-indicator {
+    margin-left: 0.45rem;
+    vertical-align: middle;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
 .additional-indicator {
     display: inline-flex;
     margin-left: 0.45rem;
@@ -349,4 +356,14 @@
     .mobile-pedido-list {
         display: grid;
     }
+}
+
+:host ::ng-deep .situation-tooltip {
+    max-width: 320px;
+    white-space: normal;
+}
+
+.estatus-situacion-tooltip {
+    display: inline-flex;
+    cursor: help;
 }

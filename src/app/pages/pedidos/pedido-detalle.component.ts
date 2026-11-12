@@ -10,10 +10,12 @@ import { ToastModule } from 'primeng/toast';
 import { catchError, finalize, of, switchMap } from 'rxjs';
 import { Pedido, PedidoAdicional, PedidoEstatus } from './models/pedido.model';
 import { PedidosService } from './services/pedidos.service';
-import { EstatusProveedorProducto } from '../formulario/models/formulario.model';
+import { AlineacionBordado, EstatusProveedorProducto } from '../formulario/models/formulario.model';
 import { FormularioCatalogosService } from '../formulario/services/formulario-catalogos.service';
 import { PedidoAdicionalFormComponent } from './components/pedido-adicional-form.component';
 import { getApiErrorMessage } from '../../core/api/api-error';
+import { agruparProductosVisualmente, claveVisual, GrupoProductoVisual } from './utils/productos-agrupacion';
+import { PedidoPersonalizacion, PedidoProductoAdicional } from './models/pedido.model';
 
 @Component({
     selector: 'app-pedido-detalle',
@@ -97,7 +99,7 @@ export class PedidoDetalleComponent {
         return this.estatusLabels[estatus] ?? estatus;
     }
     severidad(estatus: PedidoEstatus): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
-        const mapa: Record<PedidoEstatus, 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast'> = { borrador: 'secondary', confirmado: 'info', en_proceso: 'warn', listo: 'success', entregado: 'success', cancelado: 'danger' };
+        const mapa: Record<PedidoEstatus, 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast'> = { EN_PRODUCCION: 'info', SALIO_DE_PRODUCCION: 'info', POR_LIQUIDAR: 'warn', GENERAR_GUIA: 'success', EN_TRANSITO: 'info', ENTREGADO: 'success', SITUACION: 'danger' };
         return mapa[estatus];
     }
     editar(): void {
@@ -126,6 +128,31 @@ export class PedidoDetalleComponent {
     }
     formatoEstadoProveedor(estatus: EstatusProveedorProducto): string {
         return this.estadosProveedorLabels[estatus] ?? estatus;
+    }
+    alineacionCss(value: AlineacionBordado | null | undefined): 'left' | 'center' | 'right' {
+        return value === 'IZQUIERDA' ? 'left' : value === 'DERECHA' ? 'right' : 'center';
+    }
+    personalizacionesVisuales(): GrupoProductoVisual<PedidoPersonalizacion>[] {
+        return agruparProductosVisualmente(this.pedido()?.personalizaciones ?? [], (bata) => claveVisual(bata.tipo, bata.color, bata.talla, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorBordado, bata.alineacionBordado, bata.observaciones, bata.proveedorId));
+    }
+    productosVisuales(): GrupoProductoVisual<PedidoProductoAdicional>[] {
+        return agruparProductosVisualmente(this.pedido()?.productosAdicionales ?? [], (producto) => claveVisual(producto.tipo, producto.colorNombre, producto.colorProductoId, producto.tallaNombre, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoNombre, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId));
+    }
+    productosAdicionalesVisuales(adicional: PedidoAdicional): GrupoProductoVisual<PedidoAdicional['productos'][number]>[] {
+        return agruparProductosVisualmente(adicional.productos, (producto) => claveVisual(producto.tipo, producto.nombre, producto.colorNombre, producto.color, producto.tallaNombre, producto.talla, producto.texto, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId));
+    }
+    cantidadPiezasAdicional(adicional: PedidoAdicional): number {
+        return adicional.productos.reduce((total, producto) => total + producto.cantidad, 0);
+    }
+    nombreProductoVisual(producto: PedidoProductoAdicional): string {
+        if (producto.tipoEncajeNombre || producto.tipo === 'bata_encaje') return 'Bata de encaje';
+        return ({ pantalon: 'Pantalón', toalla: 'Toalla', panuelo: 'Pañuelo', panuelo_mascota: 'Pañuelo mascota', pantuflas: 'Pantuflas', playera_hombre: 'Playera hombre' } as Record<string, string>)[producto.tipo] ?? producto.tipo;
+    }
+    cantidadPiezasPersonalizaciones(): number {
+        return this.personalizacionesVisuales().reduce((total, grupo) => total + grupo.cantidad, 0);
+    }
+    cantidadPiezasProductos(): number {
+        return this.productosVisuales().reduce((total, grupo) => total + grupo.cantidad, 0);
     }
     seguimientoPorProveedor(): Array<{ proveedor: string; items: Array<{ nombre: string; cantidad: number; estatus: EstatusProveedorProducto; tipo: 'bata' | 'complemento'; index: number; origen: string }> }> {
         if (!this.pedido()) return [];
@@ -166,9 +193,9 @@ export class PedidoDetalleComponent {
         });
     }
     avanceRecibido(): number {
-        return this.seguimientoPorProveedor().reduce((total, grupo) => total + grupo.items.filter((item) => item.estatus === 'recibido').length, 0);
+        return this.seguimientoPorProveedor().reduce((total, grupo) => total + grupo.items.filter((item) => item.estatus === 'recibido').reduce((subtotal, item) => subtotal + item.cantidad, 0), 0);
     }
     totalProductosSeguimiento(): number {
-        return this.pedido() ? this.pedido()!.personalizaciones.length + this.pedido()!.complementos.length + this.pedido()!.productosAdicionales.length + this.pedido()!.adicionales.reduce((total, adicional) => total + adicional.productos.length, 0) : 0;
+        return this.pedido() ? this.pedido()!.personalizaciones.reduce((total, item) => total + item.cantidad, 0) + this.pedido()!.complementos.reduce((total, item) => total + item.cantidad, 0) + this.pedido()!.productosAdicionales.reduce((total, item) => total + item.cantidad, 0) + this.pedido()!.adicionales.reduce((total, adicional) => total + adicional.productos.reduce((subtotal, item) => subtotal + item.cantidad, 0), 0) : 0;
     }
 }

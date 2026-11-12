@@ -1,9 +1,15 @@
 <p-toast></p-toast>
+@if (loadingEdicion()) {
+    <div class="edit-loading"><i class="pi pi-spin pi-spinner"></i><span>Cargando pedido para editar...</span></div>
+}
+@if (errorEdicion()) {
+    <div class="edit-error"><i class="pi pi-exclamation-triangle"></i><span>No se pudo cargar el pedido. Regresa al detalle e inténtalo nuevamente.</span></div>
+}
 
 <div class="formulario-page" [formGroup]="form">
     <div class="page-heading">
         <div>
-            <span class="eyebrow">NUEVO PEDIDO</span>
+            <span class="eyebrow">{{ pedidoEnEdicionId ? 'EDITAR PEDIDO' : 'NUEVO PEDIDO' }}</span>
             <h1>Formulario</h1>
             <p>Captura la información de tu pedido de forma rápida y clara.</p>
         </div>
@@ -28,6 +34,16 @@
                                         <h2>Datos generales</h2>
                                         <p>Cuéntanos lo esencial para comenzar tu pedido.</p>
                                     </div>
+                                </div>
+                                <div class="urgency-option">
+                                    <p-checkbox inputId="esUrgente" formControlName="esUrgente" [binary]="true"></p-checkbox>
+                                    <label for="esUrgente">
+                                        <strong>Pedido urgente</strong>
+                                        <span>Activa esta opción cuando el pedido requiera atención prioritaria.</span>
+                                        @if (form.controls.esUrgente.value) {
+                                            <small><i class="pi pi-file"></i> Este pedido se marcará como urgente en los documentos.</small>
+                                        }
+                                    </label>
                                 </div>
                                 <div class="field-grid">
                                     <div class="field field-wide">
@@ -131,6 +147,13 @@
                                             </div>
                                             <div class="field-grid bata-fields">
                                                 <div class="field">
+                                                    <label [for]="'cantidad-bata-' + i">Cantidad <span>*</span></label>
+                                                    <p-inputnumber [inputId]="'cantidad-bata-' + i" formControlName="cantidad" [min]="1" [max]="100" [maxFractionDigits]="0" [showButtons]="true"></p-inputnumber>
+                                                    @if (esInvalido(bata.controls.cantidad)) {
+                                                        <small class="error-text">Indica una cantidad entre 1 y 100.</small>
+                                                    }
+                                                </div>
+                                                <div class="field">
                                                     <label [for]="'tipo-bata-' + i">Tipo de bata</label
                                                     ><select pInputText [id]="'tipo-bata-' + i" formControlName="tipoBataId" (change)="actualizarTipoBata(bata, bata.controls.tipoBataId.value ?? 'normal')">
                                                         <option value="normal">Normal</option>
@@ -170,8 +193,10 @@
                                                         <small class="error-text">Selecciona una talla.</small>
                                                     }
                                                 </div>
-                                                <div class="field"><label [for]="'frontal-' + i">Bordado frontal</label><input pInputText [id]="'frontal-' + i" formControlName="bordadoFrontal" placeholder="Ej. Ana" /></div>
-                                                <div class="field"><label [for]="'posterior-' + i">Bordado posterior</label><input pInputText [id]="'posterior-' + i" formControlName="bordadoPosterior" placeholder="Ej. Bride team" /></div>
+                                                <div class="field field-wide"><label [for]="'frontal-' + i">Bordado frontal</label><textarea pInputText [id]="'frontal-' + i" formControlName="bordadoFrontal" rows="3" placeholder="Ej. Ana&#10;MIS XV"></textarea></div>
+                                                <div class="field field-wide"><label [for]="'posterior-' + i">Bordado posterior</label><textarea pInputText [id]="'posterior-' + i" formControlName="bordadoPosterior" rows="3" placeholder="Ej. Bride team"></textarea></div>
+                                                <div class="field"><label [for]="'alineacion-' + i">Alineación del bordado</label><select pInputText [id]="'alineacion-' + i" formControlName="alineacionBordado"><option value="IZQUIERDA">Izquierda</option><option value="CENTRO">Centrado</option><option value="DERECHA">Derecha</option></select></div>
+                                                <div class="field field-wide embroidery-preview"><span class="field-label">Vista previa del bordado</span><div class="embroidery-preview-value" [style.text-align]="alineacionCss(bata.controls.alineacionBordado.value)">{{ textoVistaBordado(bata) || 'Sin texto capturado' }}</div></div>
                                                 <div class="field">
                                                     <label [for]="'bordado-' + i">Color del texto bordado <span>*</span></label
                                                     ><select pInputText [id]="'bordado-' + i" formControlName="colorBordadoId">
@@ -239,7 +264,10 @@
                                             <div class="field-grid product-fields">
                                                 <div class="field">
                                                     <label>Cantidad <span>*</span></label
-                                                    ><p-inputnumber formControlName="cantidad" [min]="1" [showButtons]="true"></p-inputnumber>
+                                                    ><p-inputnumber formControlName="cantidad" [min]="1" [max]="100" [maxFractionDigits]="0" [showButtons]="true"></p-inputnumber>
+                                                    @if (producto.get('cantidad')?.invalid && producto.get('cantidad')?.touched) {
+                                                        <small class="error-text">Indica una cantidad entera entre 1 y 100.</small>
+                                                    }
                                                 </div>
                                                 <div class="field">
                                                     <label>Precio <span>*</span></label
@@ -436,6 +464,13 @@
                                             }
                                         </div>
                                     }
+                                    @if (pedido.referenciasPersistidas?.length) {
+                                        <div class="file-list persisted-reference-list">
+                                            @for (referencia of pedido.referenciasPersistidas; track referencia.id) {
+                                                <div class="file-item"><i class="pi pi-check-circle"></i><span>{{ referencia.nombre }}<small>Referencia guardada</small></span></div>
+                                            }
+                                        </div>
+                                    }
                                 </div></section></ng-template
                     ></p-step-panel>
 
@@ -479,10 +514,10 @@
                                             <div>
                                                 <strong>Bata {{ i + 1 }}</strong
                                                 ><span
-                                                    >{{ bata.controls.tipo.value === 'infantil' ? 'Infantil' : 'Adulto' }} · {{ nombreCatalogo(colores, bata.controls.colorId.value) }} · {{ nombreCatalogo(tallas, bata.controls.tallaId.value) }}</span
+                                                        >{{ bata.controls.cantidad.value }} piezas · {{ bata.controls.tipo.value === 'infantil' ? 'Infantil' : 'Adulto' }} · {{ nombreCatalogo(colores, bata.controls.colorId.value) }} · {{ nombreCatalogo(tallas, bata.controls.tallaId.value) }}</span
                                                 >
                                             </div>
-                                            <strong>{{ bata.controls.precio.value | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
+                                            <strong>{{ bata.controls.cantidad.value * bata.controls.precio.value | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
                                         </div>
                                     }
                                 </div>
@@ -512,7 +547,7 @@
                                                 <strong>{{ proveedor.nombre }}</strong>
                                                 @for (bata of batasForm.controls; track bata; let i = $index) {
                                                     @if (bata.controls.proveedorId.value === proveedor.id) {
-                                                        <span>Bata {{ i + 1 }}</span>
+                                                        <span>Bata {{ i + 1 }} · {{ bata.controls.cantidad.value }} piezas</span>
                                                     }
                                                 }
                                                 @for (producto of productosForm.controls; track producto; let i = $index) {
@@ -552,8 +587,8 @@
                     @if (activeStep < 5) {
                         <p-button label="Siguiente" icon="pi pi-arrow-right" iconPos="right" (onClick)="siguiente()"></p-button>
                     } @else {
-                        <p-button label="Guardar borrador" severity="secondary" [outlined]="true" (onClick)="guardarBorrador()"></p-button
-                        ><p-button label="Finalizar pedido" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="finalizarPedido()"></p-button>
+                        <p-button label="Guardar avance" severity="secondary" [outlined]="true" (onClick)="guardarBorrador()"></p-button
+                        ><p-button [label]="pedidoEnEdicionId ? 'Guardar cambios' : 'Finalizar pedido'" icon="pi pi-check" [loading]="saving()" [disabled]="saving() || loadingEdicion() || errorEdicion()" (onClick)="finalizarPedido()"></p-button>
                     }
                 </div>
             </div>
@@ -571,7 +606,7 @@
                     <span>Cliente</span><strong>{{ nombreClienteCapturado() || 'Pendiente' }}</strong>
                 </div>
                 <div class="metric">
-                    <span>Batas</span><strong>{{ batasForm.length }}</strong>
+                    <span>Batas</span><strong>{{ cantidadBatasCapturadas() }}</strong>
                 </div>
                 <div class="metric">
                     <span>Productos adicionales</span><strong>{{ cantidadComplementos() }}</strong>

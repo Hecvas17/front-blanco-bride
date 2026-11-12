@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { finalize, map, switchMap } from 'rxjs';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { AutoCompleteModule } from 'primeng/autocomplete';
@@ -9,19 +9,27 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService } from 'primeng/api';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { StepperModule } from 'primeng/stepper';
 import { ToastModule } from 'primeng/toast';
 import { Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { FormularioCatalogosService } from './services/formulario-catalogos.service';
 import { FormularioStateService } from './services/formulario-state.service';
-import { PedidosService } from '../pedidos/services/pedidos.service';
-import { CatalogoOpcion, Cliente, EstatusBataEncaje, FormularioPedido, ProductoAdicionalPedido, Proveedor, TipoBata, TipoCliente, TipoProductoAdicional } from './models/formulario.model';
+import { PedidosService, ProductoEdicionOriginal } from '../pedidos/services/pedidos.service';
+import { mapFormularioToActualizarPedidoRequest, mapFormularioToCrearPedidoRequest, mapPedidoToFormulario } from '../pedidos/api/pedido-api.adapter';
+import { Pedido } from '../pedidos/models/pedido.model';
+import { AlineacionBordado, CatalogoOpcion, Cliente, EstatusBataEncaje, FormularioPedido, ProductoAdicionalPedido, Proveedor, TipoBata, TipoCliente, TipoProductoAdicional } from './models/formulario.model';
 import { getApiErrorMessage } from '../../core/api/api-error';
 
 type BataGroup = FormGroup<{
+    idTemporal: FormControl<string>;
+    grupoProductoId: FormControl<string | null>;
+    piezasIds: FormControl<string[]>;
     tipo: FormControl<TipoBata>;
+    cantidad: FormControl<number>;
     tipoBataId: FormControl<string | null>;
     proveedorId: FormControl<string | null>;
     estatusProveedor: FormControl<'pendiente'>;
@@ -29,6 +37,7 @@ type BataGroup = FormGroup<{
     tallaId: FormControl<string | null>;
     bordadoFrontal: FormControl<string>;
     bordadoPosterior: FormControl<string>;
+    alineacionBordado: FormControl<AlineacionBordado>;
     colorBordadoId: FormControl<string | null>;
     precio: FormControl<number>;
     observaciones: FormControl<string>;
@@ -37,7 +46,7 @@ type BataGroup = FormGroup<{
 @Component({
     selector: 'app-formulario',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, AutoCompleteModule, ButtonModule, DatePickerModule, DialogModule, InputNumberModule, InputTextModule, RadioButtonModule, StepperModule, ToastModule],
+    imports: [CommonModule, ReactiveFormsModule, AutoCompleteModule, ButtonModule, CheckboxModule, DatePickerModule, DialogModule, InputNumberModule, InputTextModule, RadioButtonModule, StepperModule, ToastModule],
     providers: [MessageService],
     templateUrl: './formulario.component.html',
     styleUrl: './formulario.component.scss'
@@ -50,6 +59,8 @@ export class FormularioComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly pedidosService = inject(PedidosService);
     private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
+    pedidoEnEdicionId: string | null = null;
 
     activeStep = 1;
     private readonly clientesState = signal<Cliente[]>([]);
@@ -84,6 +95,8 @@ export class FormularioComponent {
     tallasMascota: Array<{ id: string; nombre: string }> = [];
     opcionesDual: Array<{ id: string; nombre: string }> = [];
     readonly saving = signal(false);
+    readonly loadingEdicion = signal(false);
+    readonly errorEdicion = signal(false);
     complementos: Array<{ id: string; nombre: string; precioSugerido: number }> = [];
     mostrarProductoDialog = false;
     navegacionDesbloqueada = false;
@@ -93,6 +106,7 @@ export class FormularioComponent {
     readonly pasos = ['Datos generales', 'Batas', 'Productos adicionales', 'Diseño', 'Resumen'];
 
     readonly form = this.fb.group({
+        esUrgente: this.fb.nonNullable.control(false),
         cliente: this.fb.control<Cliente | string | null>(null, Validators.required),
         fechaEvento: this.fb.control<Date | null>(null, Validators.required),
         ubicacion: ['', Validators.required],
@@ -141,7 +155,7 @@ export class FormularioComponent {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((items) => {
                 this.complementos = items;
-                items.forEach((item) => this.complementosForm.push(this.fb.group({ id: [item.id], cantidad: [0, [Validators.min(0)]], precio: [{ value: item.precioSugerido, disabled: true }, [Validators.min(0)]] })));
+                items.forEach((item) => this.complementosForm.push(this.fb.group({ id: [item.id], cantidad: [0, [Validators.min(0), Validators.max(100)]], precio: [{ value: item.precioSugerido, disabled: true }, [Validators.min(0)]] })));
             });
         this.catalogos
             .getProveedores()
@@ -180,6 +194,34 @@ export class FormularioComponent {
             this.actualizarDesbloqueo();
             this.sincronizarEstado();
         });
+        this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+            const pedidoId = params.get('pedidoId');
+            if (!pedidoId) {
+                const estabaEditando = this.pedidoEnEdicionId !== null;
+                this.pedidoEnEdicionId = null;
+                if (estabaEditando) this.prepararFormularioNuevo();
+                else this.state.reiniciar();
+                return;
+            }
+            this.pedidoEnEdicionId = pedidoId;
+            this.loadingEdicion.set(true);
+            this.errorEdicion.set(false);
+            this.pedidosService
+                .getPedidoById(pedidoId)
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe({
+                    next: (pedido) => {
+                        if (!pedido) return;
+                        this.hidratarFormulario(pedido);
+                        this.loadingEdicion.set(false);
+                    },
+                    error: () => {
+                        this.loadingEdicion.set(false);
+                        this.errorEdicion.set(true);
+                        this.messages.add({ severity: 'error', summary: 'No se pudo cargar el pedido', detail: 'No se cargaron los datos de edición. No se puede guardar un pedido vacío.' });
+                    }
+                });
+        });
     }
 
     get batasForm(): FormArray<BataGroup> {
@@ -217,7 +259,11 @@ export class FormularioComponent {
 
     crearBata(tipo: TipoBata): BataGroup {
         return this.fb.group({
+            idTemporal: this.fb.nonNullable.control(`bata-${Date.now()}`),
+            grupoProductoId: this.fb.control<string | null>(null),
+            piezasIds: this.fb.nonNullable.control<string[]>([]),
             tipo: this.fb.nonNullable.control(tipo),
+            cantidad: this.fb.nonNullable.control(1, [Validators.required, Validators.min(1), Validators.max(100)]),
             tipoBataId: this.fb.control<string | null>(tipo === 'infantil' ? 'infantil' : 'normal'),
             proveedorId: this.fb.control<string | null>(this.catalogos.getProveedorSugerido(tipo), Validators.required),
             estatusProveedor: this.fb.nonNullable.control<'pendiente'>('pendiente'),
@@ -225,6 +271,7 @@ export class FormularioComponent {
             tallaId: this.fb.control<string | null>(null, Validators.required),
             bordadoFrontal: this.fb.nonNullable.control(''),
             bordadoPosterior: this.fb.nonNullable.control(''),
+            alineacionBordado: this.fb.nonNullable.control<AlineacionBordado>('CENTRO'),
             colorBordadoId: this.fb.control<string | null>(null, Validators.required),
             precio: this.fb.nonNullable.control(0, [Validators.required, Validators.min(0)]),
             observaciones: this.fb.nonNullable.control('')
@@ -250,24 +297,26 @@ export class FormularioComponent {
         this.form.controls.tipoCliente.setValue(tipo);
     }
 
-    agregarProducto(tipo: TipoProductoAdicional): void {
+    agregarProducto(tipo: TipoProductoAdicional, existente?: ProductoAdicionalPedido): void {
         const catalogo = this.productosCatalogo.find((item) => item.tipo === tipo);
         const group = this.fb.group({
             tipo: [tipo],
-            idTemporal: [`producto-${Date.now()}`],
-            cantidad: [1, [Validators.required, Validators.min(1)]],
-            precio: [catalogo?.precioSugerido ?? 0, [Validators.required, Validators.min(0)]],
-            proveedorId: [this.catalogos.getProveedorSugerido(tipo), Validators.required],
+            idTemporal: [existente?.idTemporal ?? `producto-${Date.now()}`],
+            grupoProductoId: [existente?.grupoProductoId ?? null],
+            piezasIds: [existente?.piezasIds ?? []],
+            cantidad: [existente?.cantidad ?? 1, [Validators.required, Validators.min(1), Validators.max(100)]],
+            precio: [existente?.precio ?? catalogo?.precioSugerido ?? 0, [Validators.required, Validators.min(0)]],
+            proveedorId: [existente?.proveedorId ?? this.catalogos.getProveedorSugerido(tipo), Validators.required],
             estatusProveedor: ['pendiente'],
-            texto: [''],
-            observaciones: [''],
-            colorProductoId: [null as string | null],
-            colorTextoId: [null as string | null],
-            tallaId: [null as string | null],
-            tallaMascota: [null as 'chica' | 'mediana' | 'grande' | null],
-            opcionPantufla: [null as 'xv_plata' | 'xv_dorado' | 'bride_bordado' | 'sin_bordado' | null],
-            tipoEncajeId: [null as string | null],
-            estatusBataEncaje: ['solicitada' as EstatusBataEncaje]
+            texto: [existente?.texto ?? ''],
+            observaciones: [existente?.observaciones ?? ''],
+            colorProductoId: [existente?.colorProductoId ?? null as string | null],
+            colorTextoId: [existente?.colorTextoId ?? null as string | null],
+            tallaId: [existente?.tallaId ?? null as string | null],
+            tallaMascota: [existente?.tallaMascota ?? null as 'chica' | 'mediana' | 'grande' | null],
+            opcionPantufla: [existente?.opcionPantufla ?? null as 'xv_plata' | 'xv_dorado' | 'bride_bordado' | 'sin_bordado' | null],
+            tipoEncajeId: [existente?.tipoEncajeId ?? null as string | null],
+            estatusBataEncaje: [existente?.estatusBataEncaje ?? 'SOLICITADA' as EstatusBataEncaje]
         });
         if (tipo === 'panuelo' || tipo === 'panuelo_mascota') {
             group.get('colorProductoId')?.addValidators(Validators.required);
@@ -312,6 +361,12 @@ export class FormularioComponent {
     }
     numero(value: unknown): number {
         return Number(value ?? 0);
+    }
+    alineacionCss(value: AlineacionBordado | null | undefined): 'left' | 'center' | 'right' {
+        return value === 'IZQUIERDA' ? 'left' : value === 'DERECHA' ? 'right' : 'center';
+    }
+    textoVistaBordado(bata: BataGroup): string {
+        return [bata.controls.bordadoFrontal.value, bata.controls.bordadoPosterior.value].filter((texto) => texto.length > 0).join('\n');
     }
     tieneProveedor(proveedorId: string): boolean {
         return this.productosForm.controls.some((producto) => producto.get('proveedorId')?.value === proveedorId) || this.batasForm.controls.some((bata) => bata.controls.proveedorId.value === proveedorId);
@@ -360,6 +415,75 @@ export class FormularioComponent {
         return this.clientes.find((item) => item.id === id)?.nombre ?? 'Sin seleccionar';
     }
 
+    private hidratarFormulario(pedido: Pedido): void {
+        const data = mapPedidoToFormulario(pedido);
+        this.form.patchValue(
+            {
+                esUrgente: data.esUrgente,
+                cliente: data.clienteId ? { id: data.clienteId, nombre: data.clienteNombre, telefono: '' } : data.clienteNombre,
+                fechaEvento: data.fechaEvento,
+                ubicacion: data.ubicacion,
+                terminacionContacto: data.terminacionContacto,
+                tipoCliente: data.tipoCliente,
+                tipoClienteOtro: data.tipoClienteOtro,
+                anticipo: data.anticipo,
+                tipografiaId: data.tipografiaId,
+                dualTexto: data.dualTexto,
+                detallesComplementos: data.detallesComplementos
+            },
+            { emitEvent: false }
+        );
+        this.clienteIdSeleccionado = data.clienteId;
+        this.batasForm.clear();
+        data.personalizaciones.forEach((bata) => {
+            const group = this.crearBata(bata.tipo);
+            group.patchValue({
+                idTemporal: bata.idTemporal,
+                grupoProductoId: bata.grupoProductoId ?? null,
+                piezasIds: bata.piezasIds ?? [],
+                tipo: bata.tipo,
+                cantidad: bata.cantidad,
+                tipoBataId: bata.tipoBataId ?? null,
+                proveedorId: bata.proveedorId ?? null,
+                estatusProveedor: 'pendiente',
+                colorId: bata.colorId ?? null,
+                tallaId: bata.tallaId ?? null,
+                bordadoFrontal: bata.bordadoFrontal,
+                bordadoPosterior: bata.bordadoPosterior,
+                alineacionBordado: bata.alineacionBordado ?? 'CENTRO',
+                colorBordadoId: bata.colorBordadoId ?? null,
+                precio: bata.precio,
+                observaciones: bata.observaciones
+            }, { emitEvent: false });
+            this.batasForm.push(group);
+        });
+        this.productosForm.clear();
+        data.productosAdicionales.forEach((producto) => this.agregarProducto(producto.tipo, producto));
+        this.state.actualizar(data);
+    }
+
+    private prepararFormularioNuevo(): void {
+        this.form.reset({ esUrgente: false, cliente: null, fechaEvento: null, ubicacion: '', terminacionContacto: '', tipoCliente: null, tipoClienteOtro: '', anticipo: 0, tipografiaId: null, dualTexto: null, detallesComplementos: '' }, { emitEvent: false });
+        this.batasForm.clear();
+        this.productosForm.clear();
+        this.complementosForm.controls.forEach((group) => group.get('cantidad')?.setValue(0, { emitEvent: false }));
+        this.agregarBata('adulto');
+        this.referencias = [];
+        this.clienteIdSeleccionado = null;
+        this.errorEdicion.set(false);
+        this.state.reiniciar();
+    }
+
+    private productosParaEdicion(): ProductoEdicionOriginal[] {
+        const definiciones = mapFormularioToCrearPedidoRequest(this.pedido).productos;
+        const capturas = [...this.pedido.personalizaciones, ...this.pedido.productosAdicionales];
+        return capturas.map((captura, index) => ({ piezaIds: captura.piezasIds ?? [], cantidad: captura.cantidad, payload: definiciones[index] })).filter((item): item is ProductoEdicionOriginal => Boolean(item.payload));
+    }
+
+    private idsProductosOriginales(): string[] {
+        return [...this.pedido.personalizaciones, ...this.pedido.productosAdicionales].flatMap((producto) => producto.piezasIds ?? []);
+    }
+
     esInvalido(control: { invalid: boolean; touched: boolean }): boolean {
         return control.invalid && control.touched;
     }
@@ -379,7 +503,7 @@ export class FormularioComponent {
     }
 
     guardarBorrador(): void {
-        this.messages.add({ severity: 'info', summary: 'Borrador guardado', detail: 'Guardado local simulado. Aún no se ha enviado nada.' });
+        this.messages.add({ severity: 'info', summary: 'Avance guardado', detail: 'Guardado local simulado. Aún no se ha enviado nada.' });
     }
     finalizarPedido(): void {
         if (!this.validarFormularioCompleto()) {
@@ -388,12 +512,14 @@ export class FormularioComponent {
         }
         this.sincronizarEstado();
         this.saving.set(true);
-        this.pedidosService
-            .crearPedido(this.pedido)
+        const request = this.pedidoEnEdicionId
+            ? this.pedidosService.actualizarPedido(this.pedidoEnEdicionId, mapFormularioToActualizarPedidoRequest(this.pedido)).pipe(switchMap((pedido) => this.pedidosService.sincronizarProductosOriginales(this.pedidoEnEdicionId!, this.productosParaEdicion(), this.idsProductosOriginales()).pipe(map(() => pedido))))
+            : this.pedidosService.crearPedido(this.pedido);
+        request
             .pipe(finalize(() => this.saving.set(false)))
             .subscribe({
                 next: (pedido) => {
-                    this.messages.add({ severity: 'success', summary: 'Pedido creado', detail: `${pedido.folio} se guardó correctamente.` });
+                    this.messages.add({ severity: 'success', summary: this.pedidoEnEdicionId ? 'Pedido actualizado' : 'Pedido creado', detail: `${pedido.folio} se guardó correctamente.` });
                     this.router.navigate(['/pedidos', pedido.id]);
                 },
                 error: (error: unknown) => this.messages.add({ severity: 'error', summary: 'No se pudo crear el pedido', detail: getApiErrorMessage(error) })
@@ -458,7 +584,7 @@ export class FormularioComponent {
     }
 
     subtotalBatas(): number {
-        return this.batasForm.controls.reduce((total, group) => total + Number(group.controls.precio.value || 0), 0);
+        return this.batasForm.controls.reduce((total, group) => total + Number(group.controls.cantidad.value || 0) * Number(group.controls.precio.value || 0), 0);
     }
     subtotalComplementos(): number {
         return this.complementosForm.controls.reduce((total, group) => total + Number(group.get('cantidad')?.value || 0) * Number(group.get('precio')?.value || 0), 0);
@@ -472,11 +598,15 @@ export class FormularioComponent {
     cantidadComplementos(): number {
         return this.productosForm.controls.reduce((total, group) => total + Number(group.get('cantidad')?.value || 0), 0);
     }
+    cantidadBatasCapturadas(): number {
+        return this.batasForm.controls.reduce((total, bata) => total + Number(bata.controls.cantidad.value || 0), 0);
+    }
 
     private sincronizarEstado(): void {
         const value = this.form.getRawValue();
         this.state.actualizar({
             clienteId: this.clienteIdSeleccionado,
+            esUrgente: Boolean(value.esUrgente),
             clienteNombre: this.nombreClienteCapturado(),
             fechaEvento: value.fechaEvento,
             ubicacion: value.ubicacion ?? '',
@@ -484,13 +614,15 @@ export class FormularioComponent {
             tipoCliente: value.tipoCliente as TipoCliente | null,
             tipoClienteOtro: value.tipoClienteOtro ?? '',
             anticipo: Number(value.anticipo ?? 0),
-            personalizaciones: value.batas.map((bata, index) => ({ idTemporal: `bata-${index + 1}`, ...bata, proveedorId: bata.proveedorId ?? null, estatusProveedor: 'pendiente' as const })),
+            personalizaciones: value.batas.map((bata, index) => ({ ...bata, idTemporal: String(bata.idTemporal ?? `bata-${index + 1}`), grupoProductoId: bata.grupoProductoId ?? null, piezasIds: bata.piezasIds ?? [], cantidad: Number(bata.cantidad ?? 1), proveedorId: bata.proveedorId ?? null, estatusProveedor: 'pendiente' as const })),
             complementos: value.complementos.map((item) => ({ complementoId: String(item['id']), cantidad: Number(item['cantidad'] ?? 0), precio: Number(item['precio'] ?? 0) })),
             productosAdicionales: value.productos.map(
                 (item, index) =>
                     ({
                         ...item,
                         idTemporal: String(item['idTemporal'] ?? `producto-${index + 1}`),
+                        grupoProductoId: item['grupoProductoId'] ? String(item['grupoProductoId']) : null,
+                        piezasIds: Array.isArray(item['piezasIds']) ? item['piezasIds'].map(String) : [],
                         tipo: item['tipo'] as TipoProductoAdicional,
                         cantidad: Number(item['cantidad'] ?? 0),
                         precio: Number(item['precio'] ?? 0),
@@ -501,7 +633,8 @@ export class FormularioComponent {
             tipografiaId: value.tipografiaId,
             dualTexto: value.dualTexto,
             detallesComplementos: value.detallesComplementos ?? '',
-            referencias: this.referencias.map((file, index) => ({ id: `ref-${index + 1}`, file, nombre: file.name, tamano: file.size }))
+            referencias: this.referencias.map((file, index) => ({ id: `ref-${index + 1}`, file, nombre: file.name, tamano: file.size })),
+            referenciasPersistidas: this.pedido.referenciasPersistidas ?? []
         });
     }
 }

@@ -23,7 +23,7 @@ import { filter } from 'rxjs/operators';
         }
         @if (hasRouterLink() && !hasChildren() && isVisible()) {
             <a
-                (click)="itemClick($event)"
+                (click)="closeMenu()"
                 [ngClass]="item().class"
                 [routerLink]="item().routerLink"
                 routerLinkActive="active-route"
@@ -120,11 +120,14 @@ export class AppMenuitem {
     });
 
     isActive = computed(() => {
-        const activePath = this.layoutService.layoutState().activePath;
-        if (this.item()?.path) {
-            return activePath?.startsWith(this.fullPath() ?? '') ?? false;
-        }
-        return false;
+        const routerLink = this.item()?.routerLink;
+        if (!routerLink) return false;
+        return this.router.isActive(this.router.createUrlTree(routerLink), {
+            paths: this.hasChildren() ? 'subset' : 'exact',
+            queryParams: 'ignored',
+            matrixParams: 'ignored',
+            fragment: 'ignored'
+        });
     });
 
     initialized = signal<boolean>(false);
@@ -205,5 +208,14 @@ export class AppMenuitem {
                 menuHoverActive: false
             }));
         }
+    }
+
+    closeMenu(): void {
+        this.layoutService.layoutState.update((val) => ({
+            ...val,
+            overlayMenuActive: false,
+            mobileMenuActive: false,
+            menuHoverActive: false
+        }));
     }
 }

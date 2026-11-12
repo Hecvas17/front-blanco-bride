@@ -22,8 +22,7 @@ function claveDia(value: Date): number {
 }
 
 export function getUrgenciaEvento(fechaEvento: Date | string, estatus?: PedidoEstatus): UrgenciaEvento {
-    if (estatus === 'entregado') return { dias: 0, texto: 'Finalizado', severity: 'secondary', vencido: false };
-    if (estatus === 'cancelado') return { dias: 0, texto: 'Cancelado', severity: 'secondary', vencido: false };
+    if (estatus === 'ENTREGADO') return { dias: 0, texto: 'Finalizado', severity: 'secondary', vencido: false };
 
     const hoy = fechaCalendarioLocal(new Date());
     const evento = fechaCalendarioLocal(fechaEvento);

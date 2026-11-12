@@ -3,20 +3,22 @@ import { CatalogoConfig, ClienteCatalogo, ColorCatalogo, OpcionCatalogo, Proveed
 const slug = (value: string) => value.toLowerCase().replaceAll(' ', '-').replaceAll('í', 'i').replaceAll('ñ', 'n');
 const opciones = (items: Array<[string, string]>, severity?: OpcionCatalogo['severity']): OpcionCatalogo[] => items.map(([clave, nombre], index) => ({ id: clave, clave, nombre, activo: true, orden: index + 1, severity }));
 const estatusPedido = opciones([
-    ['borrador', 'Borrador'],
-    ['confirmado', 'Confirmado'],
-    ['en_proceso', 'En proceso'],
-    ['listo', 'Listo'],
-    ['entregado', 'Entregado'],
-    ['cancelado', 'Cancelado']
+    ['EN_PRODUCCION', 'En producción'],
+    ['SALIO_DE_PRODUCCION', 'Salió de producción'],
+    ['POR_LIQUIDAR', 'Por liquidar'],
+    ['GENERAR_GUIA', 'Generar guía'],
+    ['EN_TRANSITO', 'En tránsito'],
+    ['ENTREGADO', 'Entregado'],
+    ['SITUACION', 'Situación']
 ]);
 const severidadesPedido: Record<string, OpcionCatalogo['severity']> = {
-    borrador: 'secondary',
-    confirmado: 'info',
-    en_proceso: 'warn',
-    listo: 'success',
-    entregado: 'success',
-    cancelado: 'danger'
+    EN_PRODUCCION: 'info',
+    SALIO_DE_PRODUCCION: 'info',
+    POR_LIQUIDAR: 'warn',
+    GENERAR_GUIA: 'success',
+    EN_TRANSITO: 'info',
+    ENTREGADO: 'success',
+    SITUACION: 'danger'
 };
 estatusPedido.forEach((item) => (item.severity = severidadesPedido[item.clave]));
 
@@ -161,8 +163,10 @@ export const CONFIG_CATALOGOS_MOCK: CatalogoConfig = {
         ['cancelado', 'Cancelado']
     ]),
     estatusBataEncaje: opciones([
-        ['solicitada', 'Solicitada'],
-        ['ya_llego', 'Ya llegó'],
-        ['lista', 'Lista']
+        ['SIN_SOLICITAR', 'Sin solicitar'],
+        ['SOLICITADA', 'Solicitada'],
+        ['YA_LLEGO', 'Ya llegó'],
+        ['EN_PRODUCCION', 'En producción'],
+        ['LISTA', 'Lista']
     ])
 };

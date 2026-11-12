@@ -19,19 +19,19 @@
         <article class="kpi-card">
             <span class="kpi-icon amber"><i class="pi pi-send"></i></span>
             <div>
-                <small>Solicitadas</small><strong>{{ contarEstatus('solicitada') }}</strong>
+                <small>Solicitadas</small><strong>{{ contarEstatus('SOLICITADA') }}</strong>
             </div>
         </article>
         <article class="kpi-card">
             <span class="kpi-icon orange"><i class="pi pi-inbox"></i></span>
             <div>
-                <small>Ya llegaron</small><strong>{{ contarEstatus('ya_llego') }}</strong>
+                <small>Ya llegaron</small><strong>{{ contarEstatus('YA_LLEGO') }}</strong>
             </div>
         </article>
         <article class="kpi-card">
             <span class="kpi-icon green"><i class="pi pi-check-circle"></i></span>
             <div>
-                <small>Listas</small><strong>{{ contarEstatus('lista') }}</strong>
+                <small>Listas</small><strong>{{ contarEstatus('LISTA') }}</strong>
             </div>
         </article>
         <article class="kpi-card">
@@ -60,7 +60,7 @@
                 ><p-select [options]="estatusEncaje()" [(ngModel)]="estatusEncajeFiltro" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos" (onChange)="aplicarFiltros()" class="w-full"></p-select>
             </div>
             <div class="filter-field">
-                <label>Estatus de pedido</label
+                <label>Seguimiento de encaje</label
                 ><p-select [options]="estatusPedido()" [(ngModel)]="estatusPedidoFiltro" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos" (onChange)="aplicarFiltros()" class="w-full"></p-select>
             </div>
             <div class="filter-field">
@@ -86,6 +86,7 @@
                     <th>Mes</th>
                     <th>Tipo de encaje</th>
                     <th>Estatus bata</th>
+                    <th>Seguimiento encaje</th>
                     <th>Estatus pedido</th>
                     <th pSortableColumn="fechaEvento">Fecha evento <p-sortIcon field="fechaEvento"></p-sortIcon></th>
                     <th>Faltan</th>
@@ -102,9 +103,10 @@
                     </td>
                     <td><p-tag [value]="registro.adicionalFolio ? registro.adicionalFolio.replace(registro.pedidoFolio + '-', '') : 'Pedido original'" [severity]="registro.adicionalFolio ? 'info' : 'secondary'"></p-tag></td>
                     <td class="month-cell">{{ mes(registro) }}</td>
-                    <td><p-select [options]="tiposEncaje()" [ngModel]="registro.tipoEncajeId" optionLabel="label" optionValue="value" (onChange)="actualizarTipo(registro, $event.value)" class="inline-select"></p-select></td>
-                    <td><p-select [options]="estatusEncaje()" [ngModel]="registro.estatusEncaje" optionLabel="label" optionValue="value" (onChange)="actualizarEstatusEncaje(registro, $event.value)" class="inline-select"></p-select></td>
-                    <td><p-select [options]="estatusPedido()" [ngModel]="registro.estatusPedido" optionLabel="label" optionValue="value" (onChange)="actualizarEstatusPedido(registro, $event.value)" class="inline-select"></p-select></td>
+                    <td><p-tag [value]="etiquetaTipo(registro.tipoEncajeId)" severity="info"></p-tag></td>
+                    <td><p-tag [value]="etiquetaEstatus(registro.estatusEncaje)" [severity]="severidadEncaje(registro.estatusEncaje)"></p-tag></td>
+                    <td><p-tag [value]="etiquetaEstatus(registro.estatusPedido)" [severity]="severidadPedido(registro.estatusPedido)"></p-tag></td>
+                    <td><p-tag [value]="etiquetaEstatusPrincipal(registro.estatusPedidoPrincipal)" [severity]="severidadPrincipal(registro.estatusPedidoPrincipal)"></p-tag></td>
                     <td>{{ fechaTexto(registro.fechaEvento) }}</td>
                     <td><p-tag [value]="urgencia(registro).texto" [severity]="urgencia(registro).severity"></p-tag></td>
                     <td>{{ etiquetaCatalogo(tallas(), registro.talla) }}</td>
@@ -113,7 +115,7 @@
             ></ng-template>
             <ng-template #emptymessage
                 ><tr>
-                    <td colspan="12">
+                    <td colspan="13">
                         <div class="empty-state">
                             <i class="pi pi-inbox"></i>
                             <h3>No encontramos batas de encaje</h3>
@@ -139,7 +141,7 @@
                 <h3>{{ etiquetaTipo(registro.tipoEncajeId) }}</h3>
                 <div class="mobile-statuses">
                     <p-tag [value]="etiquetaEstatus(registro.estatusEncaje)" [severity]="severidadEncaje(registro.estatusEncaje)"></p-tag
-                    ><p-tag [value]="etiquetaEstatus(registro.estatusPedido)" [severity]="severidadPedido(registro.estatusPedido)"></p-tag>
+                    ><p-tag [value]="etiquetaEstatus(registro.estatusPedido)" [severity]="severidadPedido(registro.estatusPedido)"></p-tag><p-tag [value]="etiquetaEstatusPrincipal(registro.estatusPedidoPrincipal)" [severity]="severidadPrincipal(registro.estatusPedidoPrincipal)"></p-tag>
                 </div>
                 <div class="mobile-details">
                     <span>Evento: {{ fechaTexto(registro.fechaEvento) }}</span
@@ -192,6 +194,12 @@
                 </div>
                 <div>
                     <small>Estatus bata</small><strong>{{ etiquetaEstatus(detalle.estatusEncaje) }}</strong>
+                </div>
+                <div>
+                    <small>Seguimiento encaje</small><strong>{{ etiquetaEstatus(detalle.estatusPedido) }}</strong>
+                </div>
+                <div>
+                    <small>Estatus pedido</small><strong>{{ etiquetaEstatusPrincipal(detalle.estatusPedidoPrincipal) }}</strong>
                 </div>
                 <div class="detail-wide">
                     <small>Observaciones</small><strong>{{ detalle.observaciones || '—' }}</strong>

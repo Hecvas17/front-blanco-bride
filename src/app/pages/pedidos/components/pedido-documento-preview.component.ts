@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { Pedido } from '../models/pedido.model';
+import { AlineacionBordado } from '../../formulario/models/formulario.model';
 import { adaptarAdicionalADocumento, adaptarPedidoADocumento, LineaDocumentoPedido, PedidoDocumentoTipo, ReferenciaDocumentoPedido } from '../utils/pedido-documento';
 
 export type PedidoDocumentoAlcance = 'original' | 'completo' | 'adicionales';
@@ -64,5 +65,9 @@ export class PedidoDocumentoPreviewComponent {
         if (this.alcance === 'original') return this.pedido?.total ?? 0;
         if (this.alcance === 'adicionales') return this.totalAdicionales;
         return this.totalOriginal + this.totalAdicionales;
+    }
+
+    alineacionCss(value: AlineacionBordado | null | undefined): 'left' | 'center' | 'right' {
+        return value === 'IZQUIERDA' ? 'left' : value === 'DERECHA' ? 'right' : 'center';
     }
 }
