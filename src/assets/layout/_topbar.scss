@@ -104,83 +104,351 @@
         position: relative;
     }
 
-    .user-trigger {
-        width: auto;
-        gap: 0.45rem;
-        padding: 0 0.65rem;
-        border-radius: var(--content-border-radius);
-
-        span {
-            display: inline-flex;
-            max-width: 10rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: 0.9rem;
-        }
-
-        .user-trigger-chevron {
-            font-size: 0.8rem;
-        }
-    }
-
-    .user-popover-content {
-        display: grid;
-        min-width: 15rem;
-        padding: 0.15rem;
-
-        .user-info {
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-        }
-
-        .user-name {
-            color: var(--text-color);
-            font-size: 1rem;
-            font-weight: 600;
-            line-height: 1.3;
-        }
-
-        .user-email {
-            overflow-wrap: anywhere;
-            overflow: hidden;
-            color: var(--text-color-secondary);
-            font-size: 0.875rem;
-            text-overflow: ellipsis;
-            line-height: 1.3;
-        }
-
-        .user-menu-divider {
-            height: 1px;
-            margin: 0.7rem 0 0.35rem;
-            background: var(--surface-border);
-        }
-
-        .logout-action {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            gap: 0.6rem;
-            padding: 0.55rem 0.35rem;
-            border: 0;
-            border-radius: var(--content-border-radius);
-            background: transparent;
-            color: var(--text-color);
-            cursor: pointer;
-            text-align: left;
-
-            &:hover {
-                background: var(--surface-hover);
-                color: var(--primary-color);
-            }
-        }
-    }
-
     .layout-config-menu {
         display: flex;
         gap: 1rem;
     }
+}
+.layout-topbar .account-menu-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+.layout-topbar .account-trigger {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 0.6rem;
+    height: 2.5rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 0.875rem;
+    color: var(--text-color);
+    background: var(--surface-card);
+    cursor: pointer;
+    transition: background-color var(--element-transition-duration), border-color var(--element-transition-duration);
+}
+
+.layout-topbar .account-trigger:hover {
+    border-color: var(--primary-color);
+    background: var(--surface-hover);
+}
+
+.layout-topbar .account-trigger-avatar,
+.layout-topbar .account-avatar-large {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--surface-border);
+    border-radius: 50%;
+    color: var(--primary-color);
+    background: var(--surface-ground);
+}
+
+.layout-topbar .account-trigger-avatar {
+    width: 2rem;
+    height: 2rem;
+}
+
+.layout-topbar .account-trigger-name {
+    max-width: 9rem;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.layout-topbar .account-trigger > i {
+    font-size: 0.75rem;
+}
+
+.layout-topbar .account-dropdown {
+    position: absolute;
+    top: calc(100% + 0.625rem);
+    right: 0;
+    z-index: 1000;
+    width: 17.5rem;
+    padding: 0.875rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 1rem;
+    color: var(--text-color);
+    background: var(--surface-card);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 16%);
+    transform-origin: top right;
+    animation: account-dropdown-enter 150ms ease-out;
+}
+
+.layout-topbar .account-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.layout-topbar .account-avatar-large {
+    width: 2.625rem;
+    height: 2.625rem;
+}
+
+.layout-topbar .account-header-info {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.layout-topbar .account-header-info strong {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.layout-topbar .account-header-info span {
+    margin-top: 0.125rem;
+    overflow-wrap: anywhere;
+    color: var(--text-color-secondary);
+    font-size: 0.85rem;
+}
+
+.layout-topbar .account-divider {
+    height: 1px;
+    margin: 0.75rem 0 0.5rem;
+    background: var(--surface-border);
+}
+
+.layout-topbar .account-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.875rem;
+}
+
+.layout-topbar .account-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.layout-topbar .account-setting-label {
+    color: var(--text-color-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.layout-topbar .account-setting-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 0.4rem 0.55rem;
+    border: 0;
+    border-radius: 0.55rem;
+    color: var(--text-color);
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.layout-topbar .account-setting-action:hover {
+    background: var(--surface-hover);
+}
+
+.layout-topbar .account-palette-control {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.layout-topbar .account-palette-control app-configurator {
+    z-index: 1001;
+}
+
+.layout-topbar .account-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.625rem;
+    padding: 0.625rem;
+    border: 0;
+    border-radius: 0.625rem;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color var(--element-transition-duration);
+}
+
+.layout-topbar .account-option:hover {
+    background: var(--surface-hover);
+}
+
+.layout-topbar .account-logout {
+    color: var(--red-500, #ef4444);
+}
+
+@keyframes account-dropdown-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* The PrimeNG popover is attached to body, so account-menu styles must be global. */
+.p-popover.user-popover {
+    min-width: 18rem;
+    padding: 0.35rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 1rem;
+    background: var(--surface-card);
+    box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
+}
+
+.p-popover.user-popover .user-popover-content {
+    display: grid;
+    min-width: 17rem;
+    padding: 0.25rem;
+}
+
+.p-popover.user-popover .user-account-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.55rem 0.7rem;
+}
+
+.p-popover.user-popover .user-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.p-popover.user-popover .user-name {
+    color: var(--text-color);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.p-popover.user-popover .user-email {
+    max-width: 13rem;
+    overflow-wrap: anywhere;
+    color: var(--text-color-secondary);
+    font-size: 0.82rem;
+    line-height: 1.3;
+}
+
+.p-popover.user-popover .user-menu-divider {
+    height: 1px;
+    margin: 0.25rem 0 0.45rem;
+    background: var(--surface-border);
+}
+
+.p-popover.user-popover .logout-action {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.6rem;
+    padding: 0.65rem 0.55rem;
+    border: 0;
+    border-radius: 0.65rem;
+    color: var(--text-color);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color var(--element-transition-duration), color var(--element-transition-duration);
+}
+
+.p-popover.user-popover .logout-action i {
+    color: var(--red-500, #ef4444);
+}
+
+.p-popover.user-popover .logout-action:hover {
+    color: var(--red-500, #ef4444);
+    background: var(--surface-hover);
+}
+
+.p-popover.user-popover .user-account-panel {
+    width: 18.75rem;
+    padding: 0.875rem;
+    border-radius: 1rem;
+    background: var(--surface-overlay);
+}
+
+.p-popover.user-popover .user-account-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.p-popover.user-popover .user-account-avatar {
+    display: flex;
+    flex: 0 0 2.625rem;
+    align-items: center;
+    justify-content: center;
+    width: 2.625rem;
+    height: 2.625rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 50%;
+    color: var(--primary-color);
+    background: var(--surface-100, var(--surface-ground));
+}
+
+.p-popover.user-popover .user-account-avatar i {
+    font-size: 1.05rem;
+}
+
+.p-popover.user-popover .user-account-info {
+    min-width: 0;
+}
+
+.p-popover.user-popover .user-account-name {
+    color: var(--text-color);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.p-popover.user-popover .user-account-email {
+    margin-top: 0.125rem;
+    overflow-wrap: anywhere;
+    color: var(--text-color-secondary);
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.p-popover.user-popover .user-account-divider {
+    height: 1px;
+    margin: 0.75rem 0 0.5rem;
+    background: var(--surface-border);
+}
+
+.p-popover.user-popover .user-account-logout {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.625rem;
+    padding: 0.625rem;
+    border: 0;
+    border-radius: 0.625rem;
+    color: var(--text-color);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color var(--element-transition-duration), color var(--element-transition-duration);
+}
+
+.p-popover.user-popover .user-account-logout i {
+    color: var(--red-500, #ef4444);
+}
+
+.p-popover.user-popover .user-account-logout:hover {
+    color: var(--text-color);
+    background: var(--surface-hover);
 }
 
 @media (max-width: 991px) {
@@ -249,9 +517,25 @@
             flex-direction: column;
         }
 
-        .user-trigger span,
-        .user-trigger .user-trigger-chevron {
-            display: none;
+        .account-menu-wrapper {
+            width: 100%;
+        }
+
+        .account-trigger {
+            width: 100%;
+            justify-content: flex-start;
+            border-color: transparent;
+            padding: 0.5rem 1rem;
+        }
+
+        .account-trigger-name {
+            max-width: none;
+        }
+
+        .account-dropdown {
+            top: calc(100% + 0.5rem);
+            right: 0;
+            width: min(18.75rem, calc(100vw - 4rem));
         }
     }
 }
