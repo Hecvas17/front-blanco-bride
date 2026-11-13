@@ -26,6 +26,10 @@ export const appRoutes: Routes = [
                 loadChildren: () => import('./app/pages/batas-encaje/batas-encaje.routes').then((m) => m.batasEncajeRoutes)
             },
             {
+                path: 'seguimiento',
+                loadChildren: () => import('./app/pages/seguimiento/seguimiento.routes').then((m) => m.seguimientoRoutes)
+            },
+            {
                 path: 'catalogos',
                 loadChildren: () => import('./app/pages/catalogos/catalogos.routes').then((m) => m.catalogosRoutes)
             },

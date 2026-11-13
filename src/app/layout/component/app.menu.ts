@@ -30,6 +30,7 @@ export class AppMenu {
                     { label: 'Formulario', icon: 'pi pi-fw pi-file-edit', routerLink: ['/formulario'] },
                     { label: 'Pedidos', icon: 'pi pi-fw pi-shopping-bag', routerLink: ['/pedidos'] },
                     { label: 'Batas de encaje', icon: 'pi pi-fw pi-star', routerLink: ['/batas-encaje'] },
+                    { label: 'Seguimiento', icon: 'pi pi-fw pi-table', routerLink: ['/seguimiento'] },
                     { label: 'Catálogos', icon: 'pi pi-fw pi-book', routerLink: ['/catalogos'] }
                 ]
             }

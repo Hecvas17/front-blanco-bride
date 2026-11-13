@@ -1,0 +1,142 @@
+<p-toast></p-toast>
+
+<div class="seguimiento-page">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">OPERACIÓN</span>
+            <h1>Seguimiento</h1>
+            <p>Consulta pedidos y batas de encaje desde una sola vista.</p>
+        </div>
+    </header>
+
+    <section class="seguimiento-surface">
+        <section class="view-switcher">
+        <p-selectbutton [options]="vistaOptions" [ngModel]="vistaActiva()" optionLabel="label" optionValue="value" (ngModelChange)="cambiarVista($event)"></p-selectbutton>
+        </section>
+
+    @if (vistaActiva() === 'pedidos') {
+        <section class="seguimiento-kpis" aria-label="Resumen de pedidos">
+            <article class="seguimiento-kpi kpi-total">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-list"></i></span>
+                <div><span class="seguimiento-kpi-label">Total de pedidos</span><strong>{{ resumenPedidos().total }}</strong></div>
+            </article>
+            <article class="seguimiento-kpi kpi-produccion">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-sync"></i></span>
+                <div><span class="seguimiento-kpi-label">En producción</span><strong>{{ resumenPedidos().enProduccion }}</strong></div>
+            </article>
+            <article class="seguimiento-kpi kpi-salieron">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-check-circle"></i></span>
+                <div><span class="seguimiento-kpi-label">Salieron de producción</span><strong>{{ resumenPedidos().salieronDeProduccion }}</strong></div>
+            </article>
+            <article class="seguimiento-kpi kpi-entregados">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-send"></i></span>
+                <div><span class="seguimiento-kpi-label">Entregados</span><strong>{{ resumenPedidos().entregados }}</strong></div>
+            </article>
+        </section>
+        <section class="toolbar">
+            <div class="filters">
+                <span class="input-icon"><i class="pi pi-search"></i><input pInputText [(ngModel)]="busquedaPedidos" (ngModelChange)="aplicarFiltrosPedidos()" placeholder="Buscar por folio o cliente" /></span>
+                <p-select [options]="estatusPedido" [(ngModel)]="estatusPedidos" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos los estatus" (onChange)="aplicarFiltrosPedidos()"></p-select>
+                <p-datepicker inputId="fechaEventoSeguimiento" [(ngModel)]="rangoFechaPedidos" selectionMode="range" [showIcon]="true" [showClear]="true" dateFormat="dd/mm/yy" placeholder="Fecha del evento" (ngModelChange)="aplicarFiltrosPedidos()"></p-datepicker>
+                <p-select [options]="[{label: 'Todos', value: 'todos'}, {label: 'Urgentes', value: 'urgentes'}, {label: 'No urgentes', value: 'normales'}]" [(ngModel)]="urgenciaPedidos" optionLabel="label" optionValue="value" (onChange)="aplicarFiltrosPedidos()"></p-select>
+            </div>
+            <div class="toolbar-actions">
+                <button type="button" class="toolbar-button" (click)="togglePanel('pedidos')"><i class="pi pi-table"></i> Columnas {{ columnasVisibles('pedidos').length }}/{{ columnas('pedidos').length }}</button>
+                <label class="density-control">Densidad <select [ngModel]="pedidosDensidad()" (ngModelChange)="actualizarDensidad('pedidos', $event)">@for (opcion of densidadOptions; track opcion.value) { <option [value]="opcion.value">{{ opcion.label }}</option> }</select></label>
+                <p-button label="Restablecer" icon="pi pi-refresh" severity="secondary" [text]="true" (onClick)="restablecer('pedidos')"></p-button>
+            </div>
+        </section>
+        @if (columnasAbiertas() === 'pedidos') {
+            <section class="columns-panel">
+                <div class="columns-panel-heading"><strong>Columnas de pedidos</strong><span>Arrastra para reordenar</span></div>
+                <div class="column-options">@for (columna of columnas('pedidos'); track columna.id) { <div class="column-option" draggable="true" (dragstart)="iniciarDrag('pedidos', columna.id)" (dragover)="permitirDrop($event)" (drop)="soltarColumna('pedidos', columna.id)"><i class="pi pi-bars drag-handle"></i><input type="checkbox" [checked]="columna.visible" [disabled]="columna.required" (change)="toggleColumna('pedidos', columna.id, $any($event.target).checked)" /><span>{{ columna.header }}</span>@if (columna.required) { <small>Obligatoria</small> }</div> }</div>
+            </section>
+        }
+        <section class="table-card" [class.density-comoda]="pedidosDensidad() === 'comoda'" [class.density-compacta]="pedidosDensidad() === 'compacta'">
+            <div class="table-heading"><div><h2>Pedidos</h2><span>{{ pedidosFiltrados().length }} resultados encontrados</span></div></div>
+            <div class="table-scroll"><p-table [value]="pedidosFiltrados()" [paginator]="true" [rows]="8" [first]="pedidosPrimero" [rowsPerPageOptions]="[5, 8, 15]" sortField="fechaEvento" [sortOrder]="1" responsiveLayout="scroll">
+                <ng-template #header><tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListSorted)="actualizarIndiceDrag('pedidos', $event)" (cdkDropListDropped)="soltarHeader('pedidos', $event)">@for (columna of columnasVisibles('pedidos'); track columna.id) { <th cdkDrag cdkDragLockAxis="x" [cdkDragData]="columna" [cdkDragDisabled]="columna.id === 'acciones'" (cdkDragStarted)="iniciarDragHeader($event, 'pedidos')" (cdkDragEnded)="finalizarDragHeader()" [pSortableColumn]="columna.field" [style.width]="columna.width" [class.column-drag-source]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [attr.data-column-id]="columna.id" [attr.aria-label]="'Columna ' + columna.header + '. Arrastra para cambiar su posición'" [title]="columna.id === 'acciones' ? columna.header : 'Arrastra para cambiar la posición de la columna ' + columna.header"><span class="column-drag-handle" aria-hidden="true"><i class="pi pi-bars"></i></span><span>{{ columna.header }}</span> <p-sortIcon [field]="columna.field"></p-sortIcon><ng-template cdkDragPreview><div class="column-drag-preview" [style.width.px]="anchoPreview()"><div class="column-drag-preview-header"><i class="pi pi-bars"></i><span>{{ columna.header }}</span></div>@for (item of previewItems('pedidos'); track $index) { <div class="column-drag-preview-cell" [class.column-drag-preview-badge]="previewEsBadge('pedidos', columna)"><p-tag *ngIf="previewEsBadge('pedidos', columna)" [value]="previewText('pedidos', columna, item)" [severity]="$any(previewSeverity('pedidos', columna, item))"></p-tag><span *ngIf="!previewEsBadge('pedidos', columna)">{{ previewText('pedidos', columna, item) }}</span></div> } @if (previewItems('pedidos').length === 0) { <div class="column-drag-preview-cell">Sin datos visibles</div> }</div></ng-template><ng-template cdkDragPlaceholder><th class="column-drag-placeholder"></th></ng-template></th> }</tr></ng-template>
+                <ng-template #body let-pedido><tr>@for (columna of columnasVisibles('pedidos'); track columna.id) {
+                    @switch (columna.id) {
+                        @case ('folio') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)"><a class="folio-link" [routerLink]="['/pedidos', pedido.id]">{{ pedido.folio }}</a></td> }
+                        @case ('urgente') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">@if (pedido.esUrgente === true) { <p-tag value="URGENTE" severity="danger"></p-tag> } @else { <span>—</span> }</td> }
+                        @case ('cliente') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)"><strong>{{ pedido.clienteNombre }}</strong><small class="cell-subtitle">{{ pedido.tipoCliente }}</small></td> }
+                        @case ('terminacion') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ pedido.terminacionContacto || '—' }}</td> }
+                        @case ('fecha') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ fecha(pedido.fechaEvento) }}</td> }
+                        @case ('faltan') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)"><p-tag [value]="urgencia(pedido).texto" [severity]="urgencia(pedido).severity"></p-tag></td> }
+                        @case ('batas') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ pedido.cantidadBatas }}</td> }
+                        @case ('complementos') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ pedido.cantidadComplementos }}</td> }
+                        @case ('total') { <td class="money" [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ precio(pedido.total) }}</td> }
+                        @case ('anticipo') { <td class="money" [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ precio(pedido.anticipo) }}</td> }
+                        @case ('restante') { <td class="money" [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)">{{ precio(pedido.restante) }}</td> }
+                        @case ('estatus') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)"><p-tag [value]="formatoEstatus(pedido.estatus)" [severity]="severidad(pedido.estatus)"></p-tag></td> }
+                        @case ('acciones') { <td class="actions-cell" [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'pedidos' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('pedidos', columna.id)"><p-button icon="pi pi-eye" severity="secondary" [text]="true" [rounded]="true" [routerLink]="['/pedidos', pedido.id]" ariaLabel="Ver pedido"></p-button><p-button icon="pi pi-pencil" severity="secondary" [text]="true" [rounded]="true" [routerLink]="['/formulario']" [queryParams]="{ pedidoId: pedido.id }" ariaLabel="Editar pedido"></p-button></td> }
+                    }
+                }</tr></ng-template>
+                <ng-template #emptymessage><tr><td [attr.colspan]="columnasVisibles('pedidos').length" class="empty-state">No encontramos pedidos.</td></tr></ng-template>
+            </p-table></div>
+        </section>
+    } @else {
+        <section class="seguimiento-kpis" aria-label="Resumen de batas de encaje">
+            <article class="seguimiento-kpi kpi-total">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-list"></i></span>
+                <div><span class="seguimiento-kpi-label">Total de batas de encaje</span><strong>{{ resumenBatas().total }}</strong></div>
+            </article>
+            <article class="seguimiento-kpi kpi-solicitadas">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-send"></i></span>
+                <div><span class="seguimiento-kpi-label">Solicitadas</span><strong>{{ resumenBatas().solicitadas }}</strong></div>
+            </article>
+            <article class="seguimiento-kpi kpi-llegaron">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-inbox"></i></span>
+                <div><span class="seguimiento-kpi-label">Ya llegaron</span><strong>{{ resumenBatas().yaLlegaron }}</strong></div>
+            </article>
+            <article class="seguimiento-kpi kpi-listas">
+                <span class="seguimiento-kpi-icon"><i class="pi pi-check-circle"></i></span>
+                <div><span class="seguimiento-kpi-label">Listas</span><strong>{{ resumenBatas().listas }}</strong></div>
+            </article>
+        </section>
+        <section class="toolbar">
+            <div class="filters">
+                <span class="input-icon"><i class="pi pi-search"></i><input pInputText [(ngModel)]="busquedaBatas" (ngModelChange)="aplicarFiltrosBatas()" placeholder="Buscar pedido o teléfono" /></span>
+                <p-select [options]="tiposEncaje" [(ngModel)]="tipoBata" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos los tipos" (onChange)="aplicarFiltrosBatas()"></p-select>
+                <p-select [options]="estatusEncaje" [(ngModel)]="estatusBata" optionLabel="label" optionValue="value" [showClear]="true" placeholder="Todos los estatus" (onChange)="aplicarFiltrosBatas()"></p-select>
+                <p-select [options]="tallas" [(ngModel)]="tallaBata" optionLabel="nombre" optionValue="nombre" [showClear]="true" placeholder="Todas las tallas" (onChange)="aplicarFiltrosBatas()"></p-select>
+            </div>
+            <div class="toolbar-actions">
+                <button type="button" class="toolbar-button" (click)="togglePanel('batas')"><i class="pi pi-table"></i> Columnas {{ columnasVisibles('batas').length }}/{{ columnas('batas').length }}</button>
+                <label class="density-control">Densidad <select [ngModel]="batasDensidad()" (ngModelChange)="actualizarDensidad('batas', $event)">@for (opcion of densidadOptions; track opcion.value) { <option [value]="opcion.value">{{ opcion.label }}</option> }</select></label>
+                <p-button label="Restablecer" icon="pi pi-refresh" severity="secondary" [text]="true" (onClick)="restablecer('batas')"></p-button>
+            </div>
+        </section>
+        @if (columnasAbiertas() === 'batas') {
+            <section class="columns-panel">
+                <div class="columns-panel-heading"><strong>Columnas de batas de encaje</strong><span>Arrastra para reordenar</span></div>
+                <div class="column-options">@for (columna of columnas('batas'); track columna.id) { <div class="column-option" draggable="true" (dragstart)="iniciarDrag('batas', columna.id)" (dragover)="permitirDrop($event)" (drop)="soltarColumna('batas', columna.id)"><i class="pi pi-bars drag-handle"></i><input type="checkbox" [checked]="columna.visible" [disabled]="columna.required" (change)="toggleColumna('batas', columna.id, $any($event.target).checked)" /><span>{{ columna.header }}</span>@if (columna.required) { <small>Obligatoria</small> }</div> }</div>
+            </section>
+        }
+        <section class="table-card" [class.density-comoda]="batasDensidad() === 'comoda'" [class.density-compacta]="batasDensidad() === 'compacta'">
+            <div class="table-heading"><div><h2>Batas de encaje</h2><span>{{ batasFiltradas().length }} registros encontrados</span></div></div>
+            <div class="table-scroll"><p-table [value]="batasFiltradas()" [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10, 15, 25]" sortField="fechaEvento" [sortOrder]="1" responsiveLayout="scroll">
+                <ng-template #header><tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListSorted)="actualizarIndiceDrag('batas', $event)" (cdkDropListDropped)="soltarHeader('batas', $event)">@for (columna of columnasVisibles('batas'); track columna.id) { <th cdkDrag cdkDragLockAxis="x" [cdkDragData]="columna" [cdkDragDisabled]="columna.id === 'acciones'" (cdkDragStarted)="iniciarDragHeader($event, 'batas')" (cdkDragEnded)="finalizarDragHeader()" [pSortableColumn]="columna.field" [style.width]="columna.width" [class.column-drag-source]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [attr.data-column-id]="columna.id" [attr.aria-label]="'Columna ' + columna.header + '. Arrastra para cambiar su posición'" [title]="columna.id === 'acciones' ? columna.header : 'Arrastra para cambiar la posición de la columna ' + columna.header"><span class="column-drag-handle" aria-hidden="true"><i class="pi pi-bars"></i></span><span>{{ columna.header }}</span> <p-sortIcon [field]="columna.field"></p-sortIcon><ng-template cdkDragPreview><div class="column-drag-preview" [style.width.px]="anchoPreview()"><div class="column-drag-preview-header"><i class="pi pi-bars"></i><span>{{ columna.header }}</span></div>@for (item of previewItems('batas'); track $index) { <div class="column-drag-preview-cell" [class.column-drag-preview-badge]="previewEsBadge('batas', columna)"><p-tag *ngIf="previewEsBadge('batas', columna)" [value]="previewText('batas', columna, item)" [severity]="$any(previewSeverity('batas', columna, item))"></p-tag><span *ngIf="!previewEsBadge('batas', columna)">{{ previewText('batas', columna, item) }}</span></div> } @if (previewItems('batas').length === 0) { <div class="column-drag-preview-cell">Sin datos visibles</div> }</div></ng-template><ng-template cdkDragPlaceholder><th class="column-drag-placeholder"></th></ng-template></th> }</tr></ng-template>
+                <ng-template #body let-bata><tr>@for (columna of columnasVisibles('batas'); track columna.id) {
+                    @switch (columna.id) {
+                        @case ('pedido') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)"><a class="folio-link" [routerLink]="['/pedidos', bata.pedidoId]">{{ bata.pedidoFolio }}</a></td> }
+                        @case ('cliente') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)">{{ bata.clienteNombre || '—' }}</td> }
+                        @case ('terminacion') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)">{{ bata.terminacionTelefono || '—' }}</td> }
+                        @case ('tipo') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)">{{ etiquetaTipo(bata.tipoEncajeId) }}</td> }
+                        @case ('talla') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)">{{ bata.talla || '—' }}</td> }
+                        @case ('estatusBata') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)"><p-tag [value]="etiquetaEstatusBata(bata.estatusEncaje)" [severity]="severidadBata(bata.estatusEncaje)"></p-tag></td> }
+                        @case ('seguimiento') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)"><p-tag [value]="etiquetaSeguimiento(bata.estatusPedido)" [severity]="severidadSeguimiento(bata.estatusPedido)"></p-tag></td> }
+                        @case ('estatusPedido') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)"><p-tag [value]="etiquetaPedido(bata.estatusPedidoPrincipal)" [severity]="severidadPedido(bata.estatusPedidoPrincipal)"></p-tag></td> }
+                        @case ('fecha') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)">{{ fechaBata(bata.fechaEvento) }}</td> }
+                        @case ('faltan') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)"><p-tag [value]="bata.fechaEvento ? 'Pendiente' : '—'" severity="secondary"></p-tag></td> }
+                        @case ('precio') { <td class="money" [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)">{{ precio(bata.precio) }}</td> }
+                        @case ('acciones') { <td [attr.data-column-id]="columna.id" [class.dragged-column-original]="dragState()?.tabla === 'batas' && dragState()?.id === columna.id" [style.transform]="getColumnDragTransform('batas', columna.id)"><p-button icon="pi pi-eye" severity="secondary" [text]="true" [rounded]="true" [routerLink]="['/pedidos', bata.pedidoId]" ariaLabel="Ver pedido"></p-button></td> }
+                    }
+                }</tr></ng-template>
+                <ng-template #emptymessage><tr><td [attr.colspan]="columnasVisibles('batas').length" class="empty-state">No encontramos batas de encaje.</td></tr></ng-template>
+            </p-table></div>
+        </section>
+    }
+    </section>
+</div>
