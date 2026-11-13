@@ -24,12 +24,13 @@ interface LayoutState {
 export class LayoutService {
     private readonly platformId = inject(PLATFORM_ID);
     private readonly primaryColorStorageKey = 'blanco-bride-primary-color';
+    private readonly themeModeStorageKey = 'blancoBride.themeMode';
 
     layoutConfig = signal<LayoutConfig>({
         preset: 'Aura',
         primary: this.getStoredPrimaryColor() ?? 'pink',
         surface: null,
-        darkTheme: false,
+        darkTheme: this.getStoredThemeMode() === 'dark',
         menuMode: 'static'
     });
 
@@ -59,11 +60,16 @@ export class LayoutService {
     private initialized = false;
 
     constructor() {
+        if (isPlatformBrowser(this.platformId)) {
+            this.toggleDarkMode(this.layoutConfig());
+        }
+
         effect(() => {
             const config = this.layoutConfig();
 
             if (isPlatformBrowser(this.platformId)) {
                 localStorage.setItem(this.primaryColorStorageKey, config.primary);
+                localStorage.setItem(this.themeModeStorageKey, config.darkTheme ? 'dark' : 'light');
             }
 
             if (!this.initialized || !config) {
@@ -78,6 +84,12 @@ export class LayoutService {
     private getStoredPrimaryColor(): string | null {
         if (!isPlatformBrowser(this.platformId)) return null;
         return localStorage.getItem(this.primaryColorStorageKey);
+    }
+
+    private getStoredThemeMode(): 'light' | 'dark' {
+        if (!isPlatformBrowser(this.platformId)) return 'light';
+
+        return localStorage.getItem(this.themeModeStorageKey) === 'dark' ? 'dark' : 'light';
     }
 
     private handleDarkModeTransition(config: LayoutConfig): void {
