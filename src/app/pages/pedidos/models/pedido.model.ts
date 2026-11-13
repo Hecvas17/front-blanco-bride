@@ -105,6 +105,7 @@ export interface PedidoReferencia {
 export interface Pedido {
     id: string;
     folio: string;
+    numeroPedido?: number | null;
     esUrgente: boolean;
     clienteId: string | null;
     clienteNombre: string;

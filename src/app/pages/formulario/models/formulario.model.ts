@@ -76,6 +76,7 @@ export interface ArchivoReferencia {
 }
 
 export interface FormularioPedido {
+    numeroPedido: string;
     esUrgente: boolean;
     clienteId: string | null;
     clienteNombre: string;
@@ -96,6 +97,7 @@ export interface FormularioPedido {
 }
 
 export const pedidoInicial = (): FormularioPedido => ({
+    numeroPedido: '',
     esUrgente: false,
     clienteId: null,
     clienteNombre: '',

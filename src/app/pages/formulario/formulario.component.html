@@ -45,6 +45,26 @@
                                         }
                                     </label>
                                 </div>
+                                <div class="field field-wide">
+                                    <label for="numeroPedido">Número de pedido <span>*</span></label>
+                                    <input
+                                        pInputText
+                                        id="numeroPedido"
+                                        formControlName="numeroPedido"
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        maxlength="12"
+                                        placeholder="Ej. 125"
+                                        [readonly]="pedidoEnEdicionId !== null"
+                                        (input)="sanitizarNumeroPedido($event)"
+                                    />
+                                    @if (pedidoEnEdicionId !== null) {
+                                        <small class="field-hint">El número se muestra desde el folio y no se edita en pedidos existentes.</small>
+                                    }
+                                    @if (esInvalido(form.controls.numeroPedido)) {
+                                        <small class="error-text">{{ form.controls.numeroPedido.hasError('required') ? 'El número de pedido es obligatorio.' : 'Ingresa solo números.' }}</small>
+                                    }
+                                </div>
                                 <div class="field-grid">
                                     <div class="field field-wide">
                                         <label for="cliente">Cliente <span>*</span></label>

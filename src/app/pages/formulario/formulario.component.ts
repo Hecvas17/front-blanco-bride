@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, map, switchMap } from 'rxjs';
@@ -106,6 +107,7 @@ export class FormularioComponent {
     readonly pasos = ['Datos generales', 'Batas', 'Productos adicionales', 'Diseño', 'Resumen'];
 
     readonly form = this.fb.group({
+        numeroPedido: this.fb.nonNullable.control('', [Validators.required, Validators.pattern(/^\d+$/)]),
         esUrgente: this.fb.nonNullable.control(false),
         cliente: this.fb.control<Cliente | string | null>(null, Validators.required),
         fechaEvento: this.fb.control<Date | null>(null, Validators.required),
@@ -255,6 +257,12 @@ export class FormularioComponent {
     nombreClienteCapturado(): string {
         const value = this.form.controls.cliente.value;
         return typeof value === 'string' ? value : (value?.nombre ?? '');
+    }
+
+    sanitizarNumeroPedido(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const numero = input.value.replace(/\D/g, '');
+        if (input.value !== numero) this.form.controls.numeroPedido.setValue(numero);
     }
 
     crearBata(tipo: TipoBata): BataGroup {
@@ -419,6 +427,7 @@ export class FormularioComponent {
         const data = mapPedidoToFormulario(pedido);
         this.form.patchValue(
             {
+                numeroPedido: data.numeroPedido,
                 esUrgente: data.esUrgente,
                 cliente: data.clienteId ? { id: data.clienteId, nombre: data.clienteNombre, telefono: '' } : data.clienteNombre,
                 fechaEvento: data.fechaEvento,
@@ -463,7 +472,7 @@ export class FormularioComponent {
     }
 
     private prepararFormularioNuevo(): void {
-        this.form.reset({ esUrgente: false, cliente: null, fechaEvento: null, ubicacion: '', terminacionContacto: '', tipoCliente: null, tipoClienteOtro: '', anticipo: 0, tipografiaId: null, dualTexto: null, detallesComplementos: '' }, { emitEvent: false });
+        this.form.reset({ numeroPedido: '', esUrgente: false, cliente: null, fechaEvento: null, ubicacion: '', terminacionContacto: '', tipoCliente: null, tipoClienteOtro: '', anticipo: 0, tipografiaId: null, dualTexto: null, detallesComplementos: '' }, { emitEvent: false });
         this.batasForm.clear();
         this.productosForm.clear();
         this.complementosForm.controls.forEach((group) => group.get('cantidad')?.setValue(0, { emitEvent: false }));
@@ -522,8 +531,14 @@ export class FormularioComponent {
                     this.messages.add({ severity: 'success', summary: this.pedidoEnEdicionId ? 'Pedido actualizado' : 'Pedido creado', detail: `${pedido.folio} se guardó correctamente.` });
                     this.router.navigate(['/pedidos', pedido.id]);
                 },
-                error: (error: unknown) => this.messages.add({ severity: 'error', summary: 'No se pudo crear el pedido', detail: getApiErrorMessage(error) })
+                error: (error: unknown) => this.messages.add({ severity: 'error', summary: 'No se pudo guardar el pedido', detail: this.esConflictoNumeroPedido(error) ? 'El número de pedido ya existe.' : getApiErrorMessage(error) })
             });
+    }
+
+    private esConflictoNumeroPedido(error: unknown): boolean {
+        if (!(error instanceof HttpErrorResponse)) return false;
+        const contenido = JSON.stringify(error.error ?? '').toLowerCase();
+        return error.status === 409 || (contenido.includes('numero') && (contenido.includes('exist') || contenido.includes('duplic')));
     }
 
     onStepChange(value: number | string | null | undefined): void {
@@ -554,6 +569,7 @@ export class FormularioComponent {
         this.form.controls.tipoClienteOtro.updateValueAndValidity({ emitEvent: false });
         const controls = [
             this.form.controls.cliente,
+            this.form.controls.numeroPedido,
             this.form.controls.fechaEvento,
             this.form.controls.ubicacion,
             this.form.controls.terminacionContacto,
@@ -606,6 +622,7 @@ export class FormularioComponent {
         const value = this.form.getRawValue();
         this.state.actualizar({
             clienteId: this.clienteIdSeleccionado,
+            numeroPedido: value.numeroPedido,
             esUrgente: Boolean(value.esUrgente),
             clienteNombre: this.nombreClienteCapturado(),
             fechaEvento: value.fechaEvento,

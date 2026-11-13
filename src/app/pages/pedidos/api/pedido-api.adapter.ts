@@ -24,6 +24,7 @@ export interface CrearProductoRequest {
 }
 
 export interface CrearPedidoRequest {
+    numeroPedido: number;
     esUrgente: boolean;
     clienteId: string | null;
     clienteNombre: string;
@@ -73,6 +74,10 @@ const tipoProducto = (tipo: string): string =>
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const normalizarEstatusPedido = (value: unknown): Pedido['estatus'] => String(value ?? '').trim().toUpperCase() as Pedido['estatus'];
 const normalizarBooleano = (value: unknown): boolean => value === true || value === 1 || value === 'true';
+const numeroDesdeFolio = (folio: unknown): number | null => {
+    const match = String(folio ?? '').match(/^PED-(\d+)/i);
+    return match ? Number(match[1]) : null;
+};
 
 export function mapFormularioToCrearPedidoRequest(formulario: FormularioPedido): CrearPedidoRequest {
     const batas: CrearProductoRequest[] = formulario.personalizaciones.map((bata) => mapBata(bata));
@@ -82,6 +87,7 @@ export function mapFormularioToCrearPedidoRequest(formulario: FormularioPedido):
         .map((item) => mapComplemento(item))
         .filter((item): item is CrearProductoRequest => item !== null);
     const request: CrearPedidoRequest = {
+        numeroPedido: Number(formulario.numeroPedido),
         esUrgente: Boolean(formulario.esUrgente),
         clienteId: formulario.clienteId,
         clienteNombre: formulario.clienteNombre,
@@ -199,6 +205,7 @@ export function mapApiPedidoToViewModel(api: any): Pedido {
     return {
         id: api.id,
         folio: api.folio,
+        numeroPedido: typeof api.numeroPedido === 'number' ? api.numeroPedido : numeroDesdeFolio(api.folio),
         esUrgente: normalizarBooleano(api.esUrgente),
         clienteId: api.clienteId ?? null,
         clienteNombre: api.clienteNombre,
@@ -345,6 +352,7 @@ export function mapPedidoToFormulario(pedido: Pedido): FormularioPedido {
         };
     });
     return {
+        numeroPedido: pedido.numeroPedido?.toString() ?? numeroDesdeFolio(pedido.folio)?.toString() ?? '',
         esUrgente: pedido.esUrgente,
         clienteId: pedido.clienteId,
         clienteNombre: pedido.clienteNombre,
