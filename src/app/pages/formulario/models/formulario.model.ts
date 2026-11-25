@@ -4,6 +4,7 @@ export type EstatusProveedorProducto = 'pendiente' | 'por_solicitar' | 'solicita
 export type TipoProductoAdicional = 'bata_encaje' | 'toalla' | 'panuelo' | 'panuelo_mascota' | 'pantuflas' | 'playera_hombre' | 'pantalon';
 export type EstatusBataEncaje = 'SIN_SOLICITAR' | 'SOLICITADA' | 'YA_LLEGO' | 'EN_PRODUCCION' | 'LISTA';
 export type AlineacionBordado = 'IZQUIERDA' | 'CENTRO' | 'DERECHA';
+export type ColorTextoModo = 'CATALOGO' | 'NINGUNO' | 'PERSONALIZADO';
 
 export interface Cliente {
     id: string;
@@ -30,6 +31,8 @@ export interface PersonalizacionBata {
     bordadoPosterior: string;
     alineacionBordado?: AlineacionBordado;
     colorBordadoId: string | null;
+    colorTextoModo: ColorTextoModo;
+    colorTextoPersonalizado: string;
     precio: number;
     observaciones: string;
     tipoBataId?: string | null;
@@ -48,9 +51,11 @@ export interface ComplementoPedido {
     observaciones?: string;
     colorProductoId?: string | null;
     colorTextoId?: string | null;
+    colorTextoModo?: ColorTextoModo;
+    colorTextoPersonalizado?: string | null;
     tallaId?: string | null;
     tallaMascota?: 'chica' | 'mediana' | 'grande' | null;
-    opcionPantufla?: 'xv_plata' | 'xv_dorado' | 'bride_bordado' | 'sin_bordado' | null;
+    opcionPantufla?: 'XV_BORDADO_PLATA' | 'XV_BORDADO_DORADO' | 'BRIDE_BORDADO' | 'SIN_BORDADO' | null;
 }
 
 export type ProductoAdicionalPedido = ComplementoPedido & {
@@ -75,6 +80,19 @@ export interface ArchivoReferencia {
     tamano: number;
 }
 
+export interface ReferenciaGuardada {
+    id: string;
+    pedidoId: string;
+    nombre: string;
+    tipo: string;
+    nombreArchivo?: string;
+    tipoMime?: string;
+    tamanoBytes?: number;
+    archivoUrl?: string;
+    creadoEn?: string;
+    previewUrl?: string;
+}
+
 export interface FormularioPedido {
     numeroPedido: string;
     esUrgente: boolean;
@@ -93,7 +111,7 @@ export interface FormularioPedido {
     dualTexto: string | null;
     detallesComplementos: string;
     referencias: ArchivoReferencia[];
-    referenciasPersistidas?: Array<{ id: string; nombre: string; tipo: string }>;
+    referenciasPersistidas?: ReferenciaGuardada[];
 }
 
 export const pedidoInicial = (): FormularioPedido => ({

@@ -1,4 +1,4 @@
-import { AlineacionBordado, EstatusBataEncaje, EstatusProveedorProducto, TipoProductoAdicional } from '../../formulario/models/formulario.model';
+import { AlineacionBordado, ColorTextoModo, EstatusBataEncaje, EstatusProveedorProducto, TipoProductoAdicional } from '../../formulario/models/formulario.model';
 import type { EstatusPedidoEncaje } from '../../batas-encaje/models/bata-encaje.model';
 
 export type PedidoEstatus = 'EN_PRODUCCION' | 'SALIO_DE_PRODUCCION' | 'POR_LIQUIDAR' | 'GENERAR_GUIA' | 'EN_TRANSITO' | 'ENTREGADO' | 'SITUACION';
@@ -10,6 +10,8 @@ export interface PedidoPersonalizacion {
     colorId?: string | null;
     tallaId?: string | null;
     colorTextoId?: string | null;
+    colorTextoModo?: ColorTextoModo;
+    colorTextoPersonalizado?: string | null;
     tipoBataId?: string | null;
     cantidad: number;
     tipo: 'adulto' | 'infantil';
@@ -44,11 +46,14 @@ export interface PedidoAdicionalProducto {
     color?: string;
     talla?: string;
     colorNombre?: string | null;
+    colorTextoNombre?: string | null;
     tallaNombre?: string | null;
     tipoEncajeNombre?: string | null;
     colorProductoId?: string | null;
     tallaId?: string | null;
     colorTextoId?: string | null;
+    colorTextoModo?: ColorTextoModo;
+    colorTextoPersonalizado?: string | null;
     texto?: string;
     observaciones?: string;
     precio: number;
@@ -68,6 +73,8 @@ export interface PedidoProductoAdicional {
     precio: number;
     colorProductoId?: string | null;
     colorTextoId?: string | null;
+    colorTextoModo?: ColorTextoModo;
+    colorTextoPersonalizado?: string | null;
     tallaId?: string | null;
     tipoEncajeId?: string | null;
     estatusBataEncaje?: EstatusBataEncaje;
@@ -98,8 +105,17 @@ export interface PedidoAdicional {
 }
 
 export interface PedidoReferencia {
+    id?: string;
+    pedidoId?: string;
     nombre: string;
     tipo: string;
+    nombreArchivo?: string;
+    tipoMime?: string;
+    rutaArchivo?: string;
+    tamanoBytes?: number;
+    archivoUrl?: string;
+    creadoEn?: Date | string;
+    previewUrl?: string;
 }
 
 export interface Pedido {

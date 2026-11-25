@@ -137,10 +137,10 @@ export const CONFIG_CATALOGOS_MOCK: CatalogoConfig = {
         ['otro', 'Otro']
     ]),
     opcionesPantufla: opciones([
-        ['xv_plata', 'XV con bordado plata'],
-        ['xv_dorado', 'XV con bordado dorado'],
-        ['bride_bordado', 'Bride con bordado'],
-        ['sin_bordado', 'Sin bordado']
+        ['XV_BORDADO_PLATA', 'XV plata'],
+        ['XV_BORDADO_DORADO', 'XV dorado'],
+        ['BRIDE_BORDADO', 'Bride'],
+        ['SIN_BORDADO', 'Sin bordado']
     ]),
     tallasMascota: opciones([
         ['chica', 'Raza chica'],

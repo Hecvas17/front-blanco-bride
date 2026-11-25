@@ -103,8 +103,16 @@
             <div class="reference-grid">
                 @for (referencia of referencias; track referencia.nombre) {
                     <div class="reference-preview" [class.image-reference]="referencia.esImagen">
-                        <i [class]="referencia.esImagen ? 'pi pi-image' : 'pi pi-file'" aria-hidden="true"></i>
-                        <span>{{ referencia.esImagen ? 'Preview de referencia' : 'Archivo de referencia' }}</span>
+                        @if (referencia.esImagen && referencia.previewUrl) {
+                            <div class="reference-image"><img [src]="referencia.previewUrl" [alt]="referencia.nombre" /></div>
+                        } @else if (referencia.cargando) {
+                            <div class="reference-loading"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Cargando imagen...</span></div>
+                        } @else if (referencia.error) {
+                            <div class="reference-error"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i><span>No se pudo cargar la imagen</span></div>
+                        } @else {
+                            <i [class]="referencia.esImagen ? 'pi pi-image' : 'pi pi-file'" aria-hidden="true"></i>
+                            <span>{{ referencia.esImagen ? 'Imagen de referencia' : 'Archivo de referencia' }}</span>
+                        }
                         <small>{{ referencia.nombre }}</small>
                     </div>
                 }

@@ -82,6 +82,7 @@ export class PedidosComponent {
     private estatusLabels: Record<string, string> = {};
     private estatusSeverities: Record<string, 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast'> = {};
     @ViewChild(PedidoDocumentoPreviewComponent, { read: ElementRef }) documentoPreview?: ElementRef<HTMLElement>;
+    @ViewChild(PedidoDocumentoPreviewComponent) documentoPreviewComponent?: PedidoDocumentoPreviewComponent;
     readonly acciones: MenuItem[] = [
             { label: 'Ver detalle', icon: 'pi pi-eye', command: () => this.verDetalle() },
             { label: 'Editar pedido', icon: 'pi pi-pencil', command: () => this.editarPedido() },
@@ -244,7 +245,9 @@ export class PedidosComponent {
 
         this.generandoPdf.set(true);
         try {
+            await this.documentoPreviewComponent?.esperarReferencias();
             await this.esperarRenderizado();
+            await this.esperarImagenesRenderizadas(sheet);
             const canvas = await this.capturarDocumento(sheet);
             this.guardarPdf(canvas);
         } catch (error) {
@@ -258,6 +261,17 @@ export class PedidosComponent {
     private async esperarRenderizado(): Promise<void> {
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         if (document.fonts?.ready) await document.fonts.ready;
+    }
+
+    private async esperarImagenesRenderizadas(container: HTMLElement): Promise<void> {
+        const imagenes = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
+        await Promise.all(imagenes.map((imagen) => {
+            if (imagen.complete) return Promise.resolve();
+            return new Promise<void>((resolve) => {
+                imagen.addEventListener('load', () => resolve(), { once: true });
+                imagen.addEventListener('error', () => resolve(), { once: true });
+            });
+        }));
     }
 
     private async capturarDocumento(sheet: HTMLElement): Promise<HTMLCanvasElement> {

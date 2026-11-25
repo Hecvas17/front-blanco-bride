@@ -7,8 +7,8 @@ import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
-import { catchError, finalize, of, switchMap } from 'rxjs';
-import { Pedido, PedidoAdicional, PedidoEstatus } from './models/pedido.model';
+import { catchError, finalize, forkJoin, map, of, switchMap } from 'rxjs';
+import { Pedido, PedidoAdicional, PedidoEstatus, PedidoReferencia } from './models/pedido.model';
 import { PedidosService } from './services/pedidos.service';
 import { AlineacionBordado, EstatusProveedorProducto } from '../formulario/models/formulario.model';
 import { FormularioCatalogosService } from '../formulario/services/formulario-catalogos.service';
@@ -37,6 +37,9 @@ export class PedidoDetalleComponent {
     readonly notFound = signal(false);
     readonly loadError = signal<string | null>(null);
     mostrarAdicionalForm = false;
+    mostrarReferenciaPreview = false;
+    referenciaSeleccionada?: PedidoReferencia;
+    readonly referenciasPreview = signal<Record<string, string>>({});
     adicionalEditando?: PedidoAdicional;
     estadosProveedor: EstatusProveedorProducto[] = [];
     private estadosProveedorLabels: Record<string, string> = {};
@@ -90,6 +93,7 @@ export class PedidoDetalleComponent {
             .subscribe((pedido) => {
                 if (pedido) {
                     this.pedido.set(pedido);
+                    this.cargarReferencias(pedido.id);
                     this.notFound.set(false);
                     this.loadError.set(null);
                 }
@@ -123,6 +127,40 @@ export class PedidoDetalleComponent {
         this.mostrarAdicionalForm = false;
         if (this.pedido()) this.service.getPedidoById(this.pedido()!.id).subscribe((pedido) => this.pedido.set(pedido));
     }
+    abrirReferencia(referencia: PedidoReferencia): void {
+        this.referenciaSeleccionada = referencia;
+        this.mostrarReferenciaPreview = true;
+    }
+    imagenReferencia(referencia: PedidoReferencia): string | undefined {
+        return referencia.id ? this.referenciasPreview()[referencia.id] : referencia.previewUrl ?? referencia.archivoUrl;
+    }
+    esImagenReferencia(referencia: PedidoReferencia): boolean {
+        return (referencia.tipoMime ?? referencia.tipo).startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(referencia.nombre);
+    }
+    private cargarReferencias(pedidoId: string): void {
+        this.service.listarReferencias(pedidoId).pipe(
+            switchMap((referencias) => {
+                if (!referencias.length) return of([]);
+                return forkJoin(
+                    referencias.map((referencia) => {
+                        const fallback = { referencia, url: referencia.previewUrl ?? referencia.archivoUrl };
+                        return referencia.id
+                            ? this.service.obtenerArchivoReferencia(pedidoId, referencia.id).pipe(
+                                  map((blob) => ({ referencia, url: URL.createObjectURL(blob) })),
+                                  catchError(() => of(fallback))
+                              )
+                            : of(fallback);
+                    })
+                );
+            }),
+            catchError(() => of([]))
+        ).subscribe((items) => {
+            const referencias = items.map((item) => item.referencia);
+            const previews = Object.fromEntries(items.filter((item): item is { referencia: PedidoReferencia; url: string } => Boolean(item.referencia.id && item.url)).map((item) => [item.referencia.id!, item.url!]));
+            this.referenciasPreview.set(previews);
+            this.pedido.update((actual) => actual ? { ...actual, referencias } : actual);
+        });
+    }
     nombreProveedor(id: string): string {
         return this.proveedoresLabels[id] ?? 'Sin proveedor asignado';
     }
@@ -133,13 +171,13 @@ export class PedidoDetalleComponent {
         return value === 'IZQUIERDA' ? 'left' : value === 'DERECHA' ? 'right' : 'center';
     }
     personalizacionesVisuales(): GrupoProductoVisual<PedidoPersonalizacion>[] {
-        return agruparProductosVisualmente(this.pedido()?.personalizaciones ?? [], (bata) => claveVisual(bata.tipo, bata.color, bata.talla, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorBordado, bata.alineacionBordado, bata.observaciones, bata.proveedorId));
+        return agruparProductosVisualmente(this.pedido()?.personalizaciones ?? [], (bata) => claveVisual(bata.tipo, bata.color, bata.talla, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorTextoModo, bata.colorTextoId, bata.colorTextoPersonalizado, bata.colorBordado, bata.alineacionBordado, bata.observaciones, bata.proveedorId));
     }
     productosVisuales(): GrupoProductoVisual<PedidoProductoAdicional>[] {
-        return agruparProductosVisualmente(this.pedido()?.productosAdicionales ?? [], (producto) => claveVisual(producto.tipo, producto.colorNombre, producto.colorProductoId, producto.tallaNombre, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoNombre, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId));
+        return agruparProductosVisualmente(this.pedido()?.productosAdicionales ?? [], (producto) => claveVisual(producto.tipo, producto.colorNombre, producto.colorProductoId, producto.tallaNombre, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoModo, producto.colorTextoNombre, producto.colorTextoPersonalizado, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId));
     }
     productosAdicionalesVisuales(adicional: PedidoAdicional): GrupoProductoVisual<PedidoAdicional['productos'][number]>[] {
-        return agruparProductosVisualmente(adicional.productos, (producto) => claveVisual(producto.tipo, producto.nombre, producto.colorNombre, producto.color, producto.tallaNombre, producto.talla, producto.texto, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId));
+        return agruparProductosVisualmente(adicional.productos, (producto) => claveVisual(producto.tipo, producto.nombre, producto.colorNombre, producto.color, producto.tallaNombre, producto.talla, producto.texto, producto.colorTextoModo, producto.colorTextoNombre, producto.colorTextoPersonalizado, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId));
     }
     cantidadPiezasAdicional(adicional: PedidoAdicional): number {
         return adicional.productos.reduce((total, producto) => total + producto.cantidad, 0);
@@ -147,6 +185,9 @@ export class PedidoDetalleComponent {
     nombreProductoVisual(producto: PedidoProductoAdicional): string {
         if (producto.tipoEncajeNombre || producto.tipo === 'bata_encaje') return 'Bata de encaje';
         return ({ pantalon: 'Pantalón', toalla: 'Toalla', panuelo: 'Pañuelo', panuelo_mascota: 'Pañuelo mascota', pantuflas: 'Pantuflas', playera_hombre: 'Playera hombre' } as Record<string, string>)[producto.tipo] ?? producto.tipo;
+    }
+    colorTextoVisual(producto: PedidoProductoAdicional): string {
+        return producto.colorTextoModo === 'PERSONALIZADO' ? producto.colorTextoPersonalizado || '—' : producto.colorTextoModo === 'NINGUNO' ? 'Ninguno' : producto.colorTextoNombre || producto.colorTextoId || '—';
     }
     cantidadPiezasPersonalizaciones(): number {
         return this.personalizacionesVisuales().reduce((total, grupo) => total + grupo.cantidad, 0);

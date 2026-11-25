@@ -535,6 +535,53 @@
     margin-top: 0.15rem;
     color: var(--text-color-secondary);
 }
+.reference-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+.reference-image-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 3.5rem 1fr auto;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    padding: 0.55rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 0.65rem;
+    background: var(--surface-card);
+}
+.reference-image-card img,
+.reference-image-placeholder {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 0.45rem;
+    object-fit: cover;
+    background: var(--surface-ground);
+}
+.reference-image-placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--text-color-secondary);
+}
+.reference-image-card > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+}
+.reference-image-card small {
+    display: block;
+    margin-top: 0.15rem;
+    overflow: hidden;
+    color: var(--text-color-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.7rem;
+}
 .summary-block {
     padding: 1rem 0;
     border-bottom: 1px solid var(--surface-border);

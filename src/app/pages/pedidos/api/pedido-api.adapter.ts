@@ -1,5 +1,5 @@
 import { dateToApiDate } from '../../../core/api/api-date';
-import { AlineacionBordado, FormularioPedido, PersonalizacionBata, ProductoAdicionalPedido, EstatusProveedorProducto } from '../../formulario/models/formulario.model';
+import { AlineacionBordado, ColorTextoModo, FormularioPedido, PersonalizacionBata, ProductoAdicionalPedido, EstatusProveedorProducto } from '../../formulario/models/formulario.model';
 import { Pedido, PedidoAdicional, PedidoComplemento, PedidoPersonalizacion, PedidoProductoAdicional } from '../models/pedido.model';
 import { agruparProductosVisualmente, claveVisual } from '../utils/productos-agrupacion';
 
@@ -11,6 +11,8 @@ export interface CrearProductoRequest {
     estatusProveedor?: string;
     colorId?: string;
     colorTextoId?: string;
+    colorTextoModo?: ColorTextoModo;
+    colorTextoPersonalizado?: string;
     tallaId?: string;
     texto?: string;
     bordadoFrontal?: string;
@@ -74,9 +76,29 @@ const tipoProducto = (tipo: string): string =>
 const isUuid = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const normalizarEstatusPedido = (value: unknown): Pedido['estatus'] => String(value ?? '').trim().toUpperCase() as Pedido['estatus'];
 const normalizarBooleano = (value: unknown): boolean => value === true || value === 1 || value === 'true';
+const normalizarOpcionPantufla = (value: unknown): ProductoAdicionalPedido['opcionPantufla'] =>
+    ({
+        XV_BORDADO_PLATA: 'XV_BORDADO_PLATA',
+        XV_BORDADO_DORADO: 'XV_BORDADO_DORADO',
+        BRIDE_BORDADO: 'BRIDE_BORDADO',
+        SIN_BORDADO: 'SIN_BORDADO',
+        xv_plata: 'XV_BORDADO_PLATA',
+        xv_dorado: 'XV_BORDADO_DORADO',
+        bride_bordado: 'BRIDE_BORDADO',
+        sin_bordado: 'SIN_BORDADO'
+    } as Record<string, ProductoAdicionalPedido['opcionPantufla']>)[String(value ?? '')] ?? null;
 const numeroDesdeFolio = (folio: unknown): number | null => {
     const match = String(folio ?? '').match(/^PED-(\d+)/i);
     return match ? Number(match[1]) : null;
+};
+const mapColorTexto = (aplicaColorTexto: boolean, modo: ColorTextoModo | undefined, id: string | null | undefined, personalizado: string | null | undefined): Pick<CrearProductoRequest, 'colorTextoModo' | 'colorTextoId' | 'colorTextoPersonalizado'> => {
+    if (!aplicaColorTexto) return {};
+    if (modo === 'CATALOGO') return id ? { colorTextoModo: 'CATALOGO', colorTextoId: id } : {};
+    if (modo === 'NINGUNO') return { colorTextoModo: 'NINGUNO' };
+    if (modo === 'PERSONALIZADO') return personalizado ? { colorTextoModo: 'PERSONALIZADO', colorTextoPersonalizado: personalizado } : {};
+    if (id) return { colorTextoModo: 'CATALOGO', colorTextoId: id };
+    if (personalizado) return { colorTextoModo: 'PERSONALIZADO', colorTextoPersonalizado: personalizado };
+    return {};
 };
 
 export function mapFormularioToCrearPedidoRequest(formulario: FormularioPedido): CrearPedidoRequest {
@@ -130,7 +152,7 @@ function mapBata(bata: PersonalizacionBata): CrearProductoRequest {
         estatusProveedor: upperEnum(bata.estatusProveedor),
         colorId: bata.colorId ?? undefined,
         tallaId: bata.tallaId ?? undefined,
-        colorTextoId: bata.colorBordadoId ?? undefined,
+        ...mapColorTexto(true, bata.colorTextoModo, bata.colorBordadoId, bata.colorTextoPersonalizado),
         bordadoFrontal: bata.bordadoFrontal,
         bordadoPosterior: bata.bordadoPosterior,
         alineacionBordado: bata.alineacionBordado ?? 'CENTRO',
@@ -166,7 +188,7 @@ function mapProducto(producto: ProductoAdicionalPedido): CrearProductoRequest {
         proveedorId: producto.proveedorId ?? undefined,
         estatusProveedor: upperEnum(producto.estatusProveedor),
         colorId: producto.colorProductoId ?? undefined,
-        colorTextoId: producto.colorTextoId ?? undefined,
+        ...mapColorTexto(producto.tipo === 'panuelo' || producto.tipo === 'panuelo_mascota', producto.colorTextoModo, producto.colorTextoId, producto.colorTextoPersonalizado),
         tallaId: producto.tallaId ?? undefined,
         texto: producto.texto,
         observaciones: producto.observaciones,
@@ -187,7 +209,7 @@ function mapComplemento(complemento: FormularioPedido['complementos'][number]): 
         proveedorId: complemento.proveedorId ?? undefined,
         estatusProveedor: upperEnum(complemento.estatusProveedor ?? 'pendiente'),
         colorId: complemento.colorProductoId ?? undefined,
-        colorTextoId: complemento.colorTextoId ?? undefined,
+        ...mapColorTexto(tipo === 'panuelo' || tipo === 'panuelo_mascota', complemento.colorTextoModo, complemento.colorTextoId, complemento.colorTextoPersonalizado),
         tallaId: complemento.tallaId ?? undefined,
         texto: complemento.texto,
         observaciones: complemento.observaciones,
@@ -233,13 +255,25 @@ export function mapApiPedidoToViewModel(api: any): Pedido {
         tipografia: api.tipografia?.nombre ?? api.tipografiaId ?? '',
         tipografiaId: api.tipografiaId ?? api.tipografia?.id ?? null,
         dualTexto: api.dualTexto ?? '',
-        referencias: (api.referencias ?? []).map((referencia: any) => ({ nombre: referencia.nombre ?? referencia.nombreArchivo ?? 'Referencia', tipo: referencia.tipo ?? referencia.tipoMime ?? 'Archivo' })),
+        referencias: (api.referencias ?? []).map((referencia: any) => ({
+            id: referencia.id,
+            pedidoId: referencia.pedidoId ?? api.id,
+            nombre: referencia.nombre ?? referencia.nombreArchivo ?? 'Referencia',
+            tipo: referencia.tipo ?? referencia.tipoMime ?? 'Archivo',
+            nombreArchivo: referencia.nombreArchivo,
+            tipoMime: referencia.tipoMime,
+            rutaArchivo: referencia.rutaArchivo,
+            tamanoBytes: referencia.tamanoBytes,
+            archivoUrl: referencia.archivoUrl,
+            creadoEn: referencia.creadoEn
+        })),
         adicionales: adicionales.map(mapAdditional),
         productosAdicionales
     };
 }
 
 function mapProductToAdditional(product: any): PedidoProductoAdicional {
+    const colorTextoModo = (product.colorTextoModo ?? (product.colorTextoId ? 'CATALOGO' : product.colorTextoPersonalizado ? 'PERSONALIZADO' : 'NINGUNO')) as ColorTextoModo;
     return {
         id: product.id,
         idTemporal: product.id,
@@ -249,11 +283,13 @@ function mapProductToAdditional(product: any): PedidoProductoAdicional {
         precio: product.precioUnitario ?? 0,
         colorProductoId: product.colorId,
         colorTextoId: product.colorTextoId,
+        colorTextoModo,
+        colorTextoPersonalizado: product.colorTextoPersonalizado ?? null,
         tallaId: product.tallaId,
         tipoEncajeId: product.tipoEncajeId,
         estatusBataEncaje: product.estatusBataEncaje,
         tallaMascota: product.tallaMascota,
-        opcionPantufla: product.opcionPantufla,
+        opcionPantufla: normalizarOpcionPantufla(product.opcionPantufla),
         bordadoFrontal: product.bordadoFrontal,
         bordadoPosterior: product.bordadoPosterior,
         alineacionBordado: product.alineacionBordado,
@@ -262,7 +298,7 @@ function mapProductToAdditional(product: any): PedidoProductoAdicional {
         proveedorId: product.proveedorId ?? '',
         estatusProveedor: product.estatusProveedor ?? 'pendiente',
         colorNombre: product.color?.nombre ?? null,
-        colorTextoNombre: product.colorTexto?.nombre ?? null,
+        colorTextoNombre: colorTextoModo === 'PERSONALIZADO' ? product.colorTextoPersonalizado ?? null : colorTextoModo === 'NINGUNO' ? 'Ninguno' : product.colorTexto?.nombre ?? null,
         tallaNombre: product.talla?.nombre ?? null,
         proveedorNombre: product.proveedor?.nombre ?? null,
         tipoEncajeNombre: product.tipoEncaje?.nombre ?? null
@@ -275,6 +311,8 @@ function mapProductToPersonalizacion(product: PedidoProductoAdicional): PedidoPe
         colorId: product.colorProductoId,
         tallaId: product.tallaId,
         colorTextoId: product.colorTextoId,
+        colorTextoModo: product.colorTextoModo,
+        colorTextoPersonalizado: product.colorTextoPersonalizado,
         tipoBataId: (product.tipo as string) === 'bata_infantil' ? 'infantil' : 'normal',
         cantidad: product.cantidad,
         tipo: (product.tipo as string) === 'bata_infantil' ? 'infantil' : 'adulto',
@@ -283,7 +321,7 @@ function mapProductToPersonalizacion(product: PedidoProductoAdicional): PedidoPe
         bordadoFrontal: product.bordadoFrontal ?? '',
         bordadoPosterior: product.bordadoPosterior ?? '',
         alineacionBordado: product.alineacionBordado ?? 'CENTRO',
-        colorBordado: product.colorTextoNombre ?? product.colorNombre ?? '',
+        colorBordado: product.colorTextoModo === 'PERSONALIZADO' ? product.colorTextoPersonalizado ?? '' : product.colorTextoNombre ?? product.colorNombre ?? '',
         precio: product.precio,
         observaciones: product.observaciones ?? '',
         proveedorId: product.proveedorId,
@@ -307,7 +345,7 @@ export function mapApiProductToViewModel(api: any): PedidoProductoAdicional {
 }
 
 export function mapPedidoToFormulario(pedido: Pedido): FormularioPedido {
-    const personalizaciones = agruparProductosVisualmente(pedido.personalizaciones, (bata) => claveVisual(bata.tipo, bata.colorId, bata.tallaId, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorTextoId, bata.alineacionBordado, bata.observaciones, bata.proveedorId)).map((grupo) => {
+    const personalizaciones = agruparProductosVisualmente(pedido.personalizaciones, (bata) => claveVisual(bata.tipo, bata.colorId, bata.tallaId, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorTextoModo, bata.colorTextoId, bata.colorTextoPersonalizado, bata.alineacionBordado, bata.observaciones, bata.proveedorId)).map((grupo) => {
         const bata = grupo.productoRepresentativo;
         return {
             idTemporal: bata.id ?? `bata-${grupo.grupoProductoId ?? 'legacy'}`,
@@ -324,11 +362,13 @@ export function mapPedidoToFormulario(pedido: Pedido): FormularioPedido {
             bordadoPosterior: bata.bordadoPosterior,
             alineacionBordado: bata.alineacionBordado ?? 'CENTRO',
             colorBordadoId: bata.colorTextoId ?? null,
+            colorTextoModo: bata.colorTextoModo ?? (bata.colorTextoId ? 'CATALOGO' : 'NINGUNO'),
+            colorTextoPersonalizado: bata.colorTextoPersonalizado ?? '',
             precio: bata.precio,
             observaciones: bata.observaciones
         };
     });
-    const productosAdicionales = agruparProductosVisualmente(pedido.productosAdicionales, (producto) => claveVisual(producto.tipo, producto.colorProductoId, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeId, producto.tallaMascota, producto.opcionPantufla, producto.observaciones, producto.proveedorId)).map((grupo) => {
+    const productosAdicionales = agruparProductosVisualmente(pedido.productosAdicionales, (producto) => claveVisual(producto.tipo, producto.colorProductoId, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoModo, producto.colorTextoId, producto.colorTextoPersonalizado, producto.alineacionBordado, producto.tipoEncajeId, producto.tallaMascota, producto.opcionPantufla, producto.observaciones, producto.proveedorId)).map((grupo) => {
         const producto = grupo.productoRepresentativo;
         return {
             complementoId: producto.idTemporal,
@@ -344,6 +384,8 @@ export function mapPedidoToFormulario(pedido: Pedido): FormularioPedido {
             observaciones: producto.observaciones ?? '',
             colorProductoId: producto.colorProductoId ?? null,
             colorTextoId: producto.colorTextoId ?? null,
+            colorTextoModo: producto.colorTextoModo ?? (producto.colorTextoId ? 'CATALOGO' : 'NINGUNO'),
+            colorTextoPersonalizado: producto.colorTextoPersonalizado ?? '',
             tallaId: producto.tallaId ?? null,
             tallaMascota: (producto.tallaMascota as ProductoAdicionalPedido['tallaMascota']) ?? null,
             opcionPantufla: (producto.opcionPantufla as ProductoAdicionalPedido['opcionPantufla']) ?? null,
@@ -369,7 +411,7 @@ export function mapPedidoToFormulario(pedido: Pedido): FormularioPedido {
         dualTexto: ({ DUAL_CENTRADO: 'Dual Centrado', DUAL_LADO: 'Dual de Lado', NINGUNO: 'Ningún Dual' } as Record<string, string>)[pedido.dualTexto] ?? pedido.dualTexto,
         detallesComplementos: pedido.detallesComplementos ?? '',
         referencias: [],
-        referenciasPersistidas: pedido.referencias.map((referencia, index) => ({ id: `persistida-${index + 1}`, nombre: referencia.nombre, tipo: referencia.tipo }))
+        referenciasPersistidas: pedido.referencias.map((referencia, index) => ({ id: referencia.id ?? `persistida-${index + 1}`, pedidoId: referencia.pedidoId ?? pedido.id, nombre: referencia.nombre, tipo: referencia.tipo, nombreArchivo: referencia.nombreArchivo, tipoMime: referencia.tipoMime, tamanoBytes: referencia.tamanoBytes, archivoUrl: referencia.archivoUrl, creadoEn: referencia.creadoEn?.toString() }))
     };
 }
 export function mapApiAdditionalProductToComplemento(api: any): PedidoComplemento {

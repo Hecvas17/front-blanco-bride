@@ -17,9 +17,15 @@ export interface LineaDocumentoPedido {
 }
 
 export interface ReferenciaDocumentoPedido {
+    id?: string;
     nombre: string;
     tipo: string;
     esImagen: boolean;
+    tipoMime?: string;
+    archivoUrl?: string;
+    previewUrl?: string;
+    cargando?: boolean;
+    error?: boolean;
 }
 
 export interface PedidoDocumentoViewModel {
@@ -28,7 +34,7 @@ export interface PedidoDocumentoViewModel {
 }
 
 export function adaptarPedidoADocumento(pedido: Pedido): PedidoDocumentoViewModel {
-    const batas: LineaDocumentoPedido[] = agruparProductosVisualmente(pedido.personalizaciones, (bata) => claveVisual(bata.tipo, bata.color, bata.talla, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorBordado, bata.alineacionBordado, bata.observaciones, bata.proveedorId)).map((grupo) => {
+    const batas: LineaDocumentoPedido[] = agruparProductosVisualmente(pedido.personalizaciones, (bata) => claveVisual(bata.tipo, bata.color, bata.talla, bata.bordadoFrontal, bata.bordadoPosterior, bata.colorTextoModo, bata.colorTextoId, bata.colorTextoPersonalizado, bata.colorBordado, bata.alineacionBordado, bata.observaciones, bata.proveedorId)).map((grupo) => {
         const bata = grupo.productoRepresentativo;
         const articulo = bata.tipo === 'infantil' ? 'Bata infantil' : 'Bata';
         return {
@@ -37,7 +43,7 @@ export function adaptarPedidoADocumento(pedido: Pedido): PedidoDocumentoViewMode
             textoBordado: textoBordado(bata.bordadoFrontal, bata.bordadoPosterior),
             alineacionBordado: bata.alineacionBordado,
             color: bata.color || '—',
-            colorTexto: bata.colorBordado || '—',
+            colorTexto: bata.colorTextoModo === 'PERSONALIZADO' ? bata.colorTextoPersonalizado || '—' : bata.colorTextoModo === 'NINGUNO' ? 'Ninguno' : bata.colorBordado || '—',
             talla: bata.talla || '—',
             observacion: bata.observaciones || '—',
             subtotal: bata.precio * grupo.cantidad
@@ -54,20 +60,24 @@ export function adaptarPedidoADocumento(pedido: Pedido): PedidoDocumentoViewMode
         observacion: observacionComplemento(complemento),
         subtotal: complemento.cantidad * complemento.precio
     }));
-    const productosAdicionales: LineaDocumentoPedido[] = agruparProductosVisualmente(pedido.productosAdicionales, (producto) => claveVisual(producto.tipo, producto.colorNombre, producto.colorProductoId, producto.tallaNombre, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoNombre, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId)).map((grupo) => adaptarProductoPedido(grupo.productoRepresentativo, grupo.cantidad));
+    const productosAdicionales: LineaDocumentoPedido[] = agruparProductosVisualmente(pedido.productosAdicionales, (producto) => claveVisual(producto.tipo, producto.colorNombre, producto.colorProductoId, producto.tallaNombre, producto.tallaId, producto.texto, producto.bordadoFrontal, producto.bordadoPosterior, producto.colorTextoModo, producto.colorTextoNombre, producto.colorTextoPersonalizado, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId)).map((grupo) => adaptarProductoPedido(grupo.productoRepresentativo, grupo.cantidad));
 
     return {
         lineas: [...batas, ...productosAdicionales, ...complementos],
         referencias: pedido.referencias.map((referencia) => ({
+            id: referencia.id,
             nombre: referencia.nombre,
             tipo: referencia.tipo,
-            esImagen: referencia.tipo.toLowerCase().includes('imagen') || /\.(jpe?g|png|webp|gif)$/i.test(referencia.nombre)
+            esImagen: (referencia.tipoMime ?? referencia.tipo).toLowerCase().includes('image') || /\.(jpe?g|png|webp|gif)$/i.test(referencia.nombre),
+            tipoMime: referencia.tipoMime,
+            archivoUrl: referencia.archivoUrl,
+            previewUrl: referencia.previewUrl
         }))
     };
 }
 
 export function adaptarAdicionalADocumento(adicional: PedidoAdicional): LineaDocumentoPedido[] {
-    return agruparProductosVisualmente(adicional.productos, (producto) => claveVisual(producto.tipo, producto.nombre, producto.colorNombre, producto.color, producto.tallaNombre, producto.talla, producto.texto, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId)).map((grupo) => adaptarProductoAdicional(grupo.productoRepresentativo, grupo.cantidad));
+    return agruparProductosVisualmente(adicional.productos, (producto) => claveVisual(producto.tipo, producto.nombre, producto.colorNombre, producto.color, producto.tallaNombre, producto.talla, producto.texto, producto.colorTextoModo, producto.colorTextoNombre, producto.colorTextoPersonalizado, producto.colorTextoId, producto.alineacionBordado, producto.tipoEncajeNombre, producto.tipoEncajeId, producto.observaciones, producto.proveedorId)).map((grupo) => adaptarProductoAdicional(grupo.productoRepresentativo, grupo.cantidad));
 }
 
 function adaptarProductoAdicional(producto: PedidoAdicionalProducto, cantidad: number): LineaDocumentoPedido {
@@ -77,7 +87,7 @@ function adaptarProductoAdicional(producto: PedidoAdicionalProducto, cantidad: n
         textoBordado: producto.texto || '—',
         alineacionBordado: producto.alineacionBordado,
         color: producto.colorNombre || producto.color || '—',
-        colorTexto: '—',
+        colorTexto: producto.colorTextoModo === 'PERSONALIZADO' ? producto.colorTextoPersonalizado || '—' : producto.colorTextoModo === 'NINGUNO' ? 'Ninguno' : producto.colorTextoNombre || '—',
         talla: producto.tallaNombre || producto.talla || '—',
         observacion: producto.tipo === 'bata_encaje' ? `Tipo de encaje: ${tipoEncajeLegible(producto.tipoEncajeId)}${producto.observaciones ? ` · ${producto.observaciones}` : ''}` : producto.observaciones || '—',
         subtotal: cantidad * producto.precio
@@ -90,7 +100,7 @@ function adaptarProductoPedido(producto: PedidoProductoAdicional, cantidad: numb
         articulo: articuloProducto(producto.tipo, producto.tipoEncajeNombre),
         textoBordado: '—',
         color: producto.colorNombre || etiquetaId(producto.colorProductoId),
-        colorTexto: '—',
+        colorTexto: producto.colorTextoModo === 'PERSONALIZADO' ? producto.colorTextoPersonalizado || '—' : producto.colorTextoModo === 'NINGUNO' ? 'Ninguno' : producto.colorTextoNombre || '—',
         talla: producto.tallaNombre || etiquetaId(producto.tallaId),
         observacion: producto.tipo === 'bata_encaje' ? `Tipo de encaje: ${producto.tipoEncajeNombre || tipoEncajeLegible(producto.tipoEncajeId)}${producto.observaciones ? ` · ${producto.observaciones}` : ''}` : producto.observaciones || '—',
         subtotal: cantidad * producto.precio

@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, defer, from, map, switchMap, concatMap, defaultIfEmpty } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { EstatusProveedorProducto, FormularioPedido } from '../../formulario/models/formulario.model';
-import { Pedido, PedidoAdicional, PedidoEstatus, PedidoProductoAdicional } from '../models/pedido.model';
+import { Pedido, PedidoAdicional, PedidoEstatus, PedidoProductoAdicional, PedidoReferencia } from '../models/pedido.model';
 import { EstatusPedidoEncaje } from '../../batas-encaje/models/bata-encaje.model';
 import { CrearProductoRequest, mapApiAdditionalProductToComplemento, mapApiPedidoToViewModel, mapApiProductToViewModel, mapFormularioToCrearPedidoRequest } from '../api/pedido-api.adapter';
 
@@ -29,6 +29,20 @@ export class PedidosService {
     }
     actualizarPedido(id: string, cambios: unknown): Observable<Pedido> {
         return this.http.patch<any>(`${this.apiUrl}/pedidos/${id}`, cambios).pipe(map(mapApiPedidoToViewModel));
+    }
+    listarReferencias(pedidoId: string): Observable<PedidoReferencia[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/pedidos/${pedidoId}/referencias`).pipe(map((items) => items.map((item) => this.mapReferencia(item, pedidoId))));
+    }
+    subirReferencia(pedidoId: string, file: File): Observable<PedidoReferencia> {
+        const formData = new FormData();
+        formData.append('file', file);
+        return this.http.post<any>(`${this.apiUrl}/pedidos/${pedidoId}/referencias`, formData).pipe(map((item) => this.mapReferencia(item, pedidoId)));
+    }
+    obtenerArchivoReferencia(pedidoId: string, referenciaId: string): Observable<Blob> {
+        return this.http.get(`${this.apiUrl}/pedidos/${pedidoId}/referencias/${referenciaId}/archivo`, { responseType: 'blob' });
+    }
+    eliminarReferencia(pedidoId: string, referenciaId: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/pedidos/${pedidoId}/referencias/${referenciaId}`);
     }
     actualizarEstatus(id: string, estatus: PedidoEstatus, estatusPedidoEncaje?: EstatusPedidoEncaje, observaciones?: string): Observable<Pedido | undefined> {
         return this.http.patch<any>(`${this.apiUrl}/pedidos/${id}/estatus`, { estatus, estatusPedidoEncaje, observaciones }).pipe(switchMap(() => this.getPedidoById(id)));
@@ -115,6 +129,21 @@ export class PedidosService {
             estatusBataEncaje: producto.estatusBataEncaje,
             texto: producto.texto,
             observaciones: producto.observaciones
+        };
+    }
+
+    private mapReferencia(item: any, pedidoId: string): PedidoReferencia {
+        return {
+            id: item.id,
+            pedidoId: item.pedidoId ?? pedidoId,
+            nombre: item.nombreArchivo ?? item.nombre ?? 'Referencia',
+            tipo: item.tipoMime ?? item.tipo ?? 'application/octet-stream',
+            nombreArchivo: item.nombreArchivo,
+            tipoMime: item.tipoMime,
+            rutaArchivo: item.rutaArchivo,
+            tamanoBytes: item.tamanoBytes,
+            archivoUrl: item.archivoUrl,
+            creadoEn: item.creadoEn
         };
     }
 }

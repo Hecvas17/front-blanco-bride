@@ -75,7 +75,7 @@
                             @for (grupo of productosVisuales(); track grupo.productoRepresentativo.idTemporal) {
                                 @let producto = grupo.productoRepresentativo;
                                 <div class="complement-line">
-                                    <span>{{ nombreProductoVisual(producto) }}{{ grupo.cantidad > 1 ? ' ×' + grupo.cantidad : '' }}</span><span>{{ producto.colorNombre || producto.colorProductoId || '—' }} · {{ producto.tallaNombre || producto.tallaId || '—' }} · {{ producto.tipoEncajeNombre || producto.tipoEncajeId || '—' }}</span
+                                    <span>{{ nombreProductoVisual(producto) }}{{ grupo.cantidad > 1 ? ' ×' + grupo.cantidad : '' }}</span><span>{{ producto.colorNombre || producto.colorProductoId || '—' }} · {{ producto.tallaNombre || producto.tallaId || '—' }} · Color texto: {{ colorTextoVisual(producto) }} · {{ producto.tipoEncajeNombre || producto.tipoEncajeId || '—' }}</span
                                     ><strong>{{ grupo.cantidad * producto.precio | currency: 'MXN' : 'symbol-narrow' : '1.0-0' }}</strong>
                                 </div>
                             }
@@ -186,6 +186,27 @@
                             >
                         }
                     </div>
+                    <div class="reference-gallery">
+                        <h3>Imágenes de referencia</h3>
+                        @if (item.referencias.length) {
+                            <div class="reference-gallery-grid">
+                                @for (referencia of item.referencias; track referencia.id ?? referencia.nombre) {
+                                    @if (esImagenReferencia(referencia)) {
+                                        <button type="button" class="reference-gallery-item" (click)="abrirReferencia(referencia)">
+                                            @if (imagenReferencia(referencia); as preview) {
+                                                <img [src]="preview" [alt]="referencia.nombre" />
+                                            } @else {
+                                                <i class="pi pi-image"></i>
+                                            }
+                                            <span>{{ referencia.nombre }}</span>
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        } @else {
+                            <p class="muted">Sin imágenes de referencia.</p>
+                        }
+                    </div>
                 </section>
                 <section class="detail-card supplier-tracking">
                     <div class="section-heading">
@@ -239,6 +260,13 @@
     </div>
     <p-dialog header="Adicional del pedido" [(visible)]="mostrarAdicionalForm" [modal]="true" [style]="{ width: 'min(960px, 96vw)' }" [draggable]="false" [resizable]="false">
         <app-pedido-adicional-form [pedido]="item" [adicional]="adicionalEditando" (cancelar)="mostrarAdicionalForm = false" (guardado)="adicionalGuardado()"></app-pedido-adicional-form>
+    </p-dialog>
+    <p-dialog header="Imagen de referencia" [(visible)]="mostrarReferenciaPreview" [modal]="true" [style]="{ width: 'min(900px, 96vw)' }" [draggable]="false" [resizable]="false">
+        @if (referenciaSeleccionada; as referencia) {
+            @if (imagenReferencia(referencia); as preview) {
+                <img class="reference-large-preview" [src]="preview" [alt]="referencia.nombre" />
+            }
+        }
     </p-dialog>
 } @else {
     <div class="not-found">

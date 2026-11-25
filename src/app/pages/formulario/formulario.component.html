@@ -219,16 +219,27 @@
                                                 <div class="field field-wide embroidery-preview"><span class="field-label">Vista previa del bordado</span><div class="embroidery-preview-value" [style.text-align]="alineacionCss(bata.controls.alineacionBordado.value)">{{ textoVistaBordado(bata) || 'Sin texto capturado' }}</div></div>
                                                 <div class="field">
                                                     <label [for]="'bordado-' + i">Color del texto bordado <span>*</span></label
-                                                    ><select pInputText [id]="'bordado-' + i" formControlName="colorBordadoId">
-                                                        <option [ngValue]="null">Selecciona un color</option>
+                                                    ><select pInputText [id]="'bordado-' + i" formControlName="colorTextoSeleccion" (change)="cambiarColorTextoBata(i, $event)">
+                                                        <option value="">Selecciona un color</option>
                                                         @for (color of coloresBordado; track color.id) {
                                                             <option [value]="color.id">{{ color.nombre }}</option>
                                                         }
+                                                        <option value="NINGUNO">Ninguno</option>
+                                                        <option value="PERSONALIZADO">Personalizado</option>
                                                     </select>
-                                                    @if (esInvalido(bata.controls.colorBordadoId)) {
-                                                        <small class="error-text">Selecciona el color del bordado.</small>
+                                                    @if (esInvalido(bata.controls.colorBordadoId) || esInvalido(bata.controls.colorTextoPersonalizado)) {
+                                                        <small class="error-text">{{ esColorTextoPersonalizado(bata) ? 'Ingresa la indicación de color.' : 'Selecciona el color del bordado.' }}</small>
                                                     }
                                                 </div>
+                                                @if (esColorTextoPersonalizado(bata)) {
+                                                    <div class="field field-wide">
+                                                        <label [for]="'color-personalizado-bata-' + i">Indicación de color <span>*</span></label>
+                                                        <textarea pInputText [id]="'color-personalizado-bata-' + i" formControlName="colorTextoPersonalizado" rows="2" placeholder="Ej. Usar los colores del logo"></textarea>
+                                                        @if (esInvalido(bata.controls.colorTextoPersonalizado)) {
+                                                            <small class="error-text">Ingresa la indicación de color.</small>
+                                                        }
+                                                    </div>
+                                                }
                                                 <div class="field">
                                                     <label [for]="'precio-' + i">Precio <span>*</span></label
                                                     ><p-inputnumber [inputId]="'precio-' + i" formControlName="precio" mode="currency" currency="MXN" locale="es-MX" [min]="0" class="w-full"></p-inputnumber>
@@ -314,13 +325,27 @@
                                                     </div>
                                                     <div class="field">
                                                         <label>Color del texto <span>*</span></label
-                                                        ><select pInputText formControlName="colorTextoId">
-                                                            <option [ngValue]="null">Selecciona un color</option>
+                                                        ><select pInputText formControlName="colorTextoSeleccion" (change)="cambiarColorTextoProducto(i, $event)">
+                                                            <option value="">Selecciona un color</option>
                                                             @for (color of coloresBordado; track color.id) {
                                                                 <option [value]="color.id">{{ color.nombre }}</option>
                                                             }
+                                                            <option value="NINGUNO">Ninguno</option>
+                                                            <option value="PERSONALIZADO">Personalizado</option>
                                                         </select>
+                                                        @if (esInvalido(producto.get('colorTextoId')!) || esInvalido(producto.get('colorTextoPersonalizado')!)) {
+                                                            <small class="error-text">{{ esColorTextoPersonalizado(producto) ? 'Ingresa la indicación de color.' : 'Selecciona el color del texto.' }}</small>
+                                                        }
                                                     </div>
+                                                    @if (esColorTextoPersonalizado(producto)) {
+                                                        <div class="field field-wide">
+                                                            <label [for]="'color-personalizado-producto-' + i">Indicación de color <span>*</span></label>
+                                                            <textarea pInputText [id]="'color-personalizado-producto-' + i" formControlName="colorTextoPersonalizado" rows="2" placeholder="Ej. Usar los colores del logo"></textarea>
+                                                            @if (esInvalido(producto.get('colorTextoPersonalizado')!)) {
+                                                                <small class="error-text">Ingresa la indicación de color.</small>
+                                                            }
+                                                        </div>
+                                                    }
                                                 }
                                                 @if (productoTipo(i) === 'playera_hombre') {
                                                     <div class="field">
@@ -407,11 +432,14 @@
                                                         <label>Opción de pantufla <span>*</span></label>
                                                         <div class="choice-grid">
                                                             @for (opcion of opcionesPantufla; track opcion.id) {
-                                                                <button type="button" class="choice-chip" [class.selected]="producto.get('opcionPantufla')?.value === opcion.id" (click)="producto.get('opcionPantufla')?.setValue(opcion.id)">
+                                                                <button type="button" class="choice-chip" [class.selected]="producto.get('opcionPantufla')?.value === opcion.id" (click)="seleccionarOpcionPantufla(i, opcion.id)">
                                                                     {{ opcion.nombre }}
                                                                 </button>
                                                             }
                                                         </div>
+                                                        @if (producto.get('opcionPantufla')?.invalid && producto.get('opcionPantufla')?.touched) {
+                                                            <small class="error-text">Selecciona una opción de pantufla.</small>
+                                                        }
                                                     </div>
                                                 }
                                                 <div class="field field-wide">
@@ -466,28 +494,34 @@
                                 </div>
                                 <div class="field mt-5">
                                     <div class="label-row">
-                                        <label for="referencias">Referencias</label><span class="field-hint">{{ referencias.length }}/2 archivos · imágenes o PDF · máximo 10 MB</span>
+                                        <label for="referencias">Imágenes de referencia</label><span class="field-hint">JPG, PNG o WEBP · máximo 10 MB por imagen</span>
                                     </div>
                                     <label class="upload-zone" for="referencias"
-                                        ><i class="pi pi-cloud-upload"></i><strong>Selecciona tus referencias</strong><span>Arrastra archivos aquí o haz clic para buscar</span
-                                        ><input id="referencias" type="file" accept="image/*,.pdf,application/pdf" multiple (change)="archivoSeleccionado($event)" [disabled]="referencias.length >= 2"
+                                        ><i class="pi pi-images"></i><strong>Arrastra imágenes aquí o selecciona archivos</strong><span>Las imágenes se asociarán al pedido al guardarlo</span
+                                        ><input id="referencias" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple (change)="archivoSeleccionado($event)"
                                     /></label>
                                     @if (referencias.length) {
-                                        <div class="file-list">
+                                        <div class="reference-image-grid">
                                             @for (file of referencias; track file.name; let i = $index) {
-                                                <div class="file-item">
-                                                    <i class="pi pi-file"></i
-                                                    ><span
-                                                        >{{ file.name }}<small>{{ formatoTamano(file.size) }}</small></span
-                                                    ><button type="button" class="icon-button" (click)="quitarReferencia(i)" aria-label="Quitar archivo"><i class="pi pi-times"></i></button>
+                                                <div class="reference-image-card">
+                                                    <img [src]="vistaPreviaReferencia(file)" [alt]="file.name" /><span>{{ file.name }}<small>{{ formatoTamano(file.size) }} · Pendiente de guardar</small></span
+                                                    ><button type="button" class="icon-button" (click)="quitarReferencia(i)" aria-label="Quitar imagen"><i class="pi pi-times"></i></button>
                                                 </div>
                                             }
                                         </div>
                                     }
-                                    @if (pedido.referenciasPersistidas?.length) {
-                                        <div class="file-list persisted-reference-list">
-                                            @for (referencia of pedido.referenciasPersistidas; track referencia.id) {
-                                                <div class="file-item"><i class="pi pi-check-circle"></i><span>{{ referencia.nombre }}<small>Referencia guardada</small></span></div>
+                                    @if (referenciasPersistidas.length) {
+                                        <div class="reference-image-grid persisted-reference-list">
+                                            @for (referencia of referenciasPersistidas; track referencia.id) {
+                                                <div class="reference-image-card">
+                                                    @if (imagenReferencia(referencia); as preview) {
+                                                        <img [src]="preview" [alt]="referencia.nombre" />
+                                                    } @else {
+                                                        <div class="reference-image-placeholder"><i class="pi pi-image"></i></div>
+                                                    }
+                                                    <span>{{ referencia.nombre }}<small>Referencia guardada</small></span
+                                                    ><button type="button" class="icon-button danger" (click)="eliminarReferenciaPersistida(referencia)" aria-label="Eliminar imagen"><i class="pi pi-trash"></i></button>
+                                                </div>
                                             }
                                         </div>
                                     }

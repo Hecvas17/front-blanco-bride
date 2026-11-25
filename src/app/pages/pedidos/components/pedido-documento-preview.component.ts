@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, SimpleChanges, inject, signal } from '@angular/core';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { Pedido } from '../models/pedido.model';
+import { PedidosService } from '../services/pedidos.service';
 import { AlineacionBordado } from '../../formulario/models/formulario.model';
 import { adaptarAdicionalADocumento, adaptarPedidoADocumento, LineaDocumentoPedido, PedidoDocumentoTipo, ReferenciaDocumentoPedido } from '../utils/pedido-documento';
 
@@ -19,11 +21,24 @@ interface SeccionDocumento {
     templateUrl: './pedido-documento-preview.component.html',
     styleUrl: './pedido-documento-preview.component.scss'
 })
-export class PedidoDocumentoPreviewComponent {
+export class PedidoDocumentoPreviewComponent implements OnChanges, OnDestroy {
+    private readonly pedidosService = inject(PedidosService);
     @Input({ required: true }) pedido!: Pedido;
     @Input() tipoDocumento: PedidoDocumentoTipo = 'cliente';
     @Input() alcance: PedidoDocumentoAlcance = 'original';
     @Input() adicionalIds: string[] = [];
+    readonly referenciasState = signal<ReferenciaDocumentoPedido[]>([]);
+    private referenciasPromise: Promise<void> = Promise.resolve();
+    private readonly objectUrls = new Set<string>();
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['pedido'] && this.pedido) this.cargarReferencias();
+    }
+
+    ngOnDestroy(): void {
+        this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        this.objectUrls.clear();
+    }
 
     get mostrarPrecios(): boolean {
         return this.tipoDocumento === 'cliente';
@@ -54,7 +69,53 @@ export class PedidoDocumentoPreviewComponent {
     }
 
     get referencias(): ReferenciaDocumentoPedido[] {
-        return this.pedido ? adaptarPedidoADocumento(this.pedido).referencias : [];
+        return this.referenciasState();
+    }
+
+    async esperarReferencias(): Promise<void> {
+        await this.referenciasPromise;
+    }
+
+    private cargarReferencias(): void {
+        this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        this.objectUrls.clear();
+        const fallback = this.pedido ? adaptarPedidoADocumento(this.pedido).referencias : [];
+        this.referenciasState.set(fallback.map((referencia) => ({ ...referencia, cargando: referencia.esImagen })));
+        this.referenciasPromise = new Promise<void>((resolve) => {
+            this.pedidosService.listarReferencias(this.pedido.id).pipe(
+                map((referencias) => referencias.map((referencia) => ({
+                    id: referencia.id,
+                    nombre: referencia.nombre,
+                    tipo: referencia.tipo,
+                    tipoMime: referencia.tipoMime,
+                    archivoUrl: referencia.archivoUrl,
+                    esImagen: (referencia.tipoMime ?? referencia.tipo).toLowerCase().includes('image') || /\.(jpe?g|png|webp|gif)$/i.test(referencia.nombre),
+                    cargando: true
+                }))),
+                catchError(() => of(fallback.map((referencia) => ({ ...referencia, cargando: referencia.esImagen }))))
+            ).subscribe((referencias) => {
+                const cargas = referencias.map((referencia) => {
+                    if (!referencia.esImagen || !referencia.id) return of({ ...referencia, cargando: false });
+                    return this.pedidosService.obtenerArchivoReferencia(this.pedido.id, referencia.id).pipe(
+                        map((blob) => {
+                            const previewUrl = URL.createObjectURL(blob);
+                            this.objectUrls.add(previewUrl);
+                            return { ...referencia, previewUrl, cargando: false };
+                        }),
+                        catchError(() => of({ ...referencia, cargando: false, error: true }))
+                    );
+                });
+                if (!cargas.length) {
+                    this.referenciasState.set(referencias);
+                    resolve();
+                    return;
+                }
+                forkJoin(cargas).subscribe((resultado) => {
+                    this.referenciasState.set(resultado);
+                    resolve();
+                });
+            });
+        });
     }
 
     get tituloDocumento(): string {

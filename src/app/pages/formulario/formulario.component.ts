@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, map, switchMap } from 'rxjs';
+import { catchError, finalize, forkJoin, map, of, switchMap } from 'rxjs';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { AutoCompleteModule } from 'primeng/autocomplete';
@@ -22,7 +22,7 @@ import { FormularioStateService } from './services/formulario-state.service';
 import { PedidosService, ProductoEdicionOriginal } from '../pedidos/services/pedidos.service';
 import { mapFormularioToActualizarPedidoRequest, mapFormularioToCrearPedidoRequest, mapPedidoToFormulario } from '../pedidos/api/pedido-api.adapter';
 import { Pedido } from '../pedidos/models/pedido.model';
-import { AlineacionBordado, CatalogoOpcion, Cliente, EstatusBataEncaje, FormularioPedido, ProductoAdicionalPedido, Proveedor, TipoBata, TipoCliente, TipoProductoAdicional } from './models/formulario.model';
+import { AlineacionBordado, CatalogoOpcion, Cliente, ColorTextoModo, EstatusBataEncaje, FormularioPedido, ProductoAdicionalPedido, Proveedor, ReferenciaGuardada, TipoBata, TipoCliente, TipoProductoAdicional } from './models/formulario.model';
 import { getApiErrorMessage } from '../../core/api/api-error';
 
 type BataGroup = FormGroup<{
@@ -40,6 +40,9 @@ type BataGroup = FormGroup<{
     bordadoPosterior: FormControl<string>;
     alineacionBordado: FormControl<AlineacionBordado>;
     colorBordadoId: FormControl<string | null>;
+    colorTextoModo: FormControl<ColorTextoModo>;
+    colorTextoPersonalizado: FormControl<string>;
+    colorTextoSeleccion: FormControl<string | null>;
     precio: FormControl<number>;
     observaciones: FormControl<string>;
 }>;
@@ -103,6 +106,8 @@ export class FormularioComponent {
     navegacionDesbloqueada = false;
     clienteIdSeleccionado: string | null = null;
     referencias: File[] = [];
+    referenciasPersistidas: ReferenciaGuardada[] = [];
+    private readonly referenciasPreview = new Map<string, string>();
     readonly maxFileSize = 10 * 1024 * 1024;
     readonly pasos = ['Datos generales', 'Batas', 'Productos adicionales', 'Diseño', 'Resumen'];
 
@@ -215,6 +220,7 @@ export class FormularioComponent {
                     next: (pedido) => {
                         if (!pedido) return;
                         this.hidratarFormulario(pedido);
+                        this.cargarReferenciasPersistidas(pedido.id);
                         this.loadingEdicion.set(false);
                     },
                     error: () => {
@@ -281,6 +287,9 @@ export class FormularioComponent {
             bordadoPosterior: this.fb.nonNullable.control(''),
             alineacionBordado: this.fb.nonNullable.control<AlineacionBordado>('CENTRO'),
             colorBordadoId: this.fb.control<string | null>(null, Validators.required),
+            colorTextoModo: this.fb.nonNullable.control<ColorTextoModo>('CATALOGO'),
+            colorTextoPersonalizado: this.fb.nonNullable.control(''),
+            colorTextoSeleccion: this.fb.control<string | null>(null),
             precio: this.fb.nonNullable.control(0, [Validators.required, Validators.min(0)]),
             observaciones: this.fb.nonNullable.control('')
         });
@@ -320,15 +329,18 @@ export class FormularioComponent {
             observaciones: [existente?.observaciones ?? ''],
             colorProductoId: [existente?.colorProductoId ?? null as string | null],
             colorTextoId: [existente?.colorTextoId ?? null as string | null],
+            colorTextoModo: [existente?.colorTextoModo ?? 'CATALOGO' as ColorTextoModo],
+            colorTextoPersonalizado: [existente?.colorTextoPersonalizado ?? ''],
+            colorTextoSeleccion: [this.seleccionColorTexto(existente?.colorTextoModo, existente?.colorTextoId, existente?.colorTextoPersonalizado)],
             tallaId: [existente?.tallaId ?? null as string | null],
             tallaMascota: [existente?.tallaMascota ?? null as 'chica' | 'mediana' | 'grande' | null],
-            opcionPantufla: [existente?.opcionPantufla ?? null as 'xv_plata' | 'xv_dorado' | 'bride_bordado' | 'sin_bordado' | null],
+            opcionPantufla: [existente?.opcionPantufla ?? null as ProductoAdicionalPedido['opcionPantufla']],
             tipoEncajeId: [existente?.tipoEncajeId ?? null as string | null],
             estatusBataEncaje: [existente?.estatusBataEncaje ?? 'SOLICITADA' as EstatusBataEncaje]
         });
         if (tipo === 'panuelo' || tipo === 'panuelo_mascota') {
             group.get('colorProductoId')?.addValidators(Validators.required);
-            group.get('colorTextoId')?.addValidators(Validators.required);
+            this.configurarValidadoresColorTexto(group);
         }
         if (tipo === 'panuelo_mascota') group.get('tallaMascota')?.addValidators(Validators.required);
         if (tipo === 'pantuflas') group.get('opcionPantufla')?.addValidators(Validators.required);
@@ -345,9 +357,75 @@ export class FormularioComponent {
             group.get('colorProductoId')?.addValidators(Validators.required);
             group.get('tallaId')?.addValidators(Validators.required);
         }
+        Object.values(group.controls).forEach((control) => control.updateValueAndValidity({ emitEvent: false }));
         group.updateValueAndValidity();
         this.productosForm.push(group);
         this.mostrarProductoDialog = false;
+    }
+
+    cambiarColorTextoBata(index: number, event: Event): void {
+        this.aplicarSeleccionColorTexto(this.bataForm(index), (event.target as HTMLSelectElement).value, 'colorBordadoId');
+    }
+
+    cambiarColorTextoProducto(index: number, event: Event): void {
+        this.aplicarSeleccionColorTexto(this.productoForm(index), (event.target as HTMLSelectElement).value, 'colorTextoId');
+    }
+
+    esColorTextoPersonalizado(group: FormGroup): boolean {
+        return group.get('colorTextoModo')?.value === 'PERSONALIZADO';
+    }
+
+    private seleccionColorTexto(modo: ColorTextoModo | null | undefined, id: string | null | undefined, personalizado: string | null | undefined): string | null {
+        if (modo === 'NINGUNO') return 'NINGUNO';
+        if (modo === 'PERSONALIZADO') return 'PERSONALIZADO';
+        return id ?? null;
+    }
+
+    private configurarValidadoresColorTexto(group: FormGroup): void {
+        const id = group.get('colorTextoId') ?? group.get('colorBordadoId');
+        const personalizado = group.get('colorTextoPersonalizado');
+        id?.setValidators(Validators.required);
+        personalizado?.clearValidators();
+        this.actualizarValidadoresColorTexto(group);
+    }
+
+    private actualizarValidadoresColorTexto(group: FormGroup): void {
+        const modo = group.get('colorTextoModo')?.value as ColorTextoModo;
+        const id = group.get('colorTextoId') ?? group.get('colorBordadoId');
+        const personalizado = group.get('colorTextoPersonalizado');
+        if (modo === 'CATALOGO') {
+            id?.setValidators(Validators.required);
+            personalizado?.clearValidators();
+        } else if (modo === 'PERSONALIZADO') {
+            id?.clearValidators();
+            personalizado?.setValidators([Validators.required, Validators.pattern(/.*\S.*/s)]);
+        } else {
+            id?.clearValidators();
+            personalizado?.clearValidators();
+        }
+        id?.updateValueAndValidity({ emitEvent: false });
+        personalizado?.updateValueAndValidity({ emitEvent: false });
+    }
+
+    private aplicarSeleccionColorTexto(group: FormGroup, seleccion: string, idControl: 'colorTextoId' | 'colorBordadoId'): void {
+        const modo: ColorTextoModo = seleccion === 'NINGUNO' ? 'NINGUNO' : seleccion === 'PERSONALIZADO' ? 'PERSONALIZADO' : 'CATALOGO';
+        group.patchValue({
+            colorTextoModo: modo,
+            [idControl]: modo === 'CATALOGO' ? seleccion : null,
+            colorTextoPersonalizado: modo === 'PERSONALIZADO' ? group.get('colorTextoPersonalizado')?.value ?? '' : ''
+        }, { emitEvent: false });
+        this.actualizarValidadoresColorTexto(group);
+        group.get('colorTextoModo')?.markAsDirty();
+        group.get('colorTextoPersonalizado')?.markAsTouched();
+        this.sincronizarEstado();
+    }
+
+    seleccionarOpcionPantufla(index: number, opcion: string): void {
+        const control = this.productoForm(index).get('opcionPantufla');
+        control?.setValue(opcion);
+        control?.markAsDirty();
+        control?.updateValueAndValidity();
+        this.sincronizarEstado();
     }
     eliminarProducto(index: number): void {
         this.productosForm.removeAt(index);
@@ -389,7 +467,7 @@ export class FormularioComponent {
         return this.productoForm(index).get('tipo')?.value as TipoProductoAdicional;
     }
     nombreOpcionPantufla(opcion: string | null): string {
-        return ({ xv_plata: 'XV con bordado plata', xv_dorado: 'XV con bordado dorado', bride_bordado: 'Bride con bordado', sin_bordado: 'Sin bordado' } as Record<string, string>)[opcion ?? ''] ?? 'Selecciona una opción';
+        return ({ XV_BORDADO_PLATA: 'XV plata', XV_BORDADO_DORADO: 'XV dorado', BRIDE_BORDADO: 'Bride', SIN_BORDADO: 'Sin bordado', xv_plata: 'XV plata', xv_dorado: 'XV dorado', bride_bordado: 'Bride', sin_bordado: 'Sin bordado' } as Record<string, string>)[opcion ?? ''] ?? 'Selecciona una opción';
     }
     subtotalProductos(): number {
         return this.productosForm.controls.reduce((total, group) => total + Number(group.get('cantidad')?.value ?? 0) * Number(group.get('precio')?.value ?? 0), 0);
@@ -398,20 +476,47 @@ export class FormularioComponent {
     archivoSeleccionado(event: Event): void {
         const input = event.target as HTMLInputElement;
         for (const file of Array.from(input.files ?? [])) {
-            const extensionValida = file.type.startsWith('image/') || file.type === 'application/pdf';
-            if (!extensionValida || file.size > this.maxFileSize) {
-                this.messages.add({ severity: 'warn', summary: 'Archivo no válido', detail: `${file.name} debe ser imagen/PDF y pesar máximo 10 MB.` });
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                this.messages.add({ severity: 'warn', summary: 'Tipo no permitido', detail: 'El archivo debe ser JPG, PNG o WEBP.' });
                 continue;
             }
-            if (this.referencias.length < 2 && !this.referencias.some((item) => item.name === file.name)) this.referencias.push(file);
+            if (file.size > this.maxFileSize) {
+                this.messages.add({ severity: 'warn', summary: 'Archivo demasiado grande', detail: `${file.name} supera el límite de 10 MB.` });
+                continue;
+            }
+            if (!this.referencias.some((item) => item.name === file.name)) {
+                this.referencias.push(file);
+                this.referenciasPreview.set(file.name, URL.createObjectURL(file));
+            }
         }
         input.value = '';
         this.sincronizarEstado();
     }
 
     quitarReferencia(index: number): void {
-        this.referencias.splice(index, 1);
+        const [file] = this.referencias.splice(index, 1);
+        if (file) this.liberarPreview(file.name);
         this.sincronizarEstado();
+    }
+    vistaPreviaReferencia(file: File): string | undefined {
+        return this.referenciasPreview.get(file.name);
+    }
+    eliminarReferenciaPersistida(referencia: ReferenciaGuardada): void {
+        if (!this.pedidoEnEdicionId || !referencia.id || !confirm('¿Eliminar esta imagen de referencia?')) return;
+        this.pedidosService.eliminarReferencia(this.pedidoEnEdicionId, referencia.id).subscribe({
+            next: () => {
+                this.liberarPreview(referencia.id!);
+                this.referenciasPersistidas = this.referenciasPersistidas.filter((item) => item.id !== referencia.id);
+                this.messages.add({ severity: 'success', summary: 'Referencia eliminada', detail: 'La imagen se eliminó correctamente.' });
+            },
+            error: () => this.messages.add({ severity: 'error', summary: 'No se pudo eliminar', detail: 'La imagen de referencia sigue disponible.' })
+        });
+    }
+    imagenReferencia(referencia: ReferenciaGuardada): string | undefined {
+        return referencia.previewUrl;
+    }
+    esImagenReferencia(referencia: ReferenciaGuardada): boolean {
+        return (referencia.tipoMime ?? referencia.tipo).startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(referencia.nombre);
     }
     formatoTamano(bytes: number): string {
         return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
@@ -421,6 +526,50 @@ export class FormularioComponent {
     }
     nombreCliente(id: string | null): string {
         return this.clientes.find((item) => item.id === id)?.nombre ?? 'Sin seleccionar';
+    }
+
+    private cargarReferenciasPersistidas(pedidoId: string): void {
+        this.liberarPreviewsPersistidas();
+        this.pedidosService.listarReferencias(pedidoId).pipe(
+            switchMap((referencias) => {
+                if (!referencias.length) return of([] as ReferenciaGuardada[]);
+                return forkJoin(referencias.map((referencia) => {
+                    const base: ReferenciaGuardada = { id: referencia.id ?? '', pedidoId: referencia.pedidoId ?? pedidoId, nombre: referencia.nombre, tipo: referencia.tipo, nombreArchivo: referencia.nombreArchivo, tipoMime: referencia.tipoMime, tamanoBytes: referencia.tamanoBytes, archivoUrl: referencia.archivoUrl, creadoEn: referencia.creadoEn?.toString() };
+                    return referencia.id
+                        ? this.pedidosService.obtenerArchivoReferencia(pedidoId, referencia.id).pipe(
+                              map((blob) => ({ ...base, previewUrl: URL.createObjectURL(blob) })),
+                              catchError(() => of(base))
+                          )
+                        : of(base);
+                }));
+            }),
+            catchError(() => of([] as ReferenciaGuardada[]))
+        ).subscribe((referencias) => (this.referenciasPersistidas = referencias));
+    }
+
+    private subirReferenciasPendientes(pedidoId: string) {
+        if (!this.referencias.length) return of(0);
+        return forkJoin(this.referencias.map((file) => this.pedidosService.subirReferencia(pedidoId, file).pipe(map(() => true), catchError(() => of(false))))).pipe(map((resultados) => resultados.filter((resultado) => !resultado).length));
+    }
+
+    private liberarPreview(key: string): void {
+        const preview = this.referenciasPreview.get(key);
+        if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
+        this.referenciasPreview.delete(key);
+    }
+
+    private liberarPreviewsPersistidas(): void {
+        this.referenciasPersistidas.forEach((referencia) => {
+            if (referencia.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(referencia.previewUrl);
+        });
+        this.referenciasPersistidas = [];
+    }
+
+    private liberarPreviewsPendientes(): void {
+        this.referenciasPreview.forEach((preview) => {
+            if (preview.startsWith('blob:')) URL.revokeObjectURL(preview);
+        });
+        this.referenciasPreview.clear();
     }
 
     private hidratarFormulario(pedido: Pedido): void {
@@ -461,9 +610,13 @@ export class FormularioComponent {
                 bordadoPosterior: bata.bordadoPosterior,
                 alineacionBordado: bata.alineacionBordado ?? 'CENTRO',
                 colorBordadoId: bata.colorBordadoId ?? null,
+                colorTextoModo: bata.colorTextoModo ?? 'CATALOGO',
+                colorTextoPersonalizado: bata.colorTextoPersonalizado ?? '',
+                colorTextoSeleccion: this.seleccionColorTexto(bata.colorTextoModo, bata.colorBordadoId, bata.colorTextoPersonalizado),
                 precio: bata.precio,
                 observaciones: bata.observaciones
             }, { emitEvent: false });
+            this.actualizarValidadoresColorTexto(group);
             this.batasForm.push(group);
         });
         this.productosForm.clear();
@@ -478,6 +631,8 @@ export class FormularioComponent {
         this.complementosForm.controls.forEach((group) => group.get('cantidad')?.setValue(0, { emitEvent: false }));
         this.agregarBata('adulto');
         this.referencias = [];
+        this.liberarPreviewsPendientes();
+        this.liberarPreviewsPersistidas();
         this.clienteIdSeleccionado = null;
         this.errorEdicion.set(false);
         this.state.reiniciar();
@@ -525,10 +680,11 @@ export class FormularioComponent {
             ? this.pedidosService.actualizarPedido(this.pedidoEnEdicionId, mapFormularioToActualizarPedidoRequest(this.pedido)).pipe(switchMap((pedido) => this.pedidosService.sincronizarProductosOriginales(this.pedidoEnEdicionId!, this.productosParaEdicion(), this.idsProductosOriginales()).pipe(map(() => pedido))))
             : this.pedidosService.crearPedido(this.pedido);
         request
+            .pipe(switchMap((pedido) => this.subirReferenciasPendientes(pedido.id).pipe(map((fallidas) => ({ pedido, fallidas })))))
             .pipe(finalize(() => this.saving.set(false)))
             .subscribe({
-                next: (pedido) => {
-                    this.messages.add({ severity: 'success', summary: this.pedidoEnEdicionId ? 'Pedido actualizado' : 'Pedido creado', detail: `${pedido.folio} se guardó correctamente.` });
+                next: ({ pedido, fallidas }) => {
+                    this.messages.add({ severity: fallidas ? 'warn' : 'success', summary: this.pedidoEnEdicionId ? 'Pedido actualizado' : 'Pedido creado', detail: fallidas ? `${pedido.folio} se guardó correctamente. ${fallidas} imagen(es) de referencia no pudieron subirse.` : `${pedido.folio} se guardó correctamente.` });
                     this.router.navigate(['/pedidos', pedido.id]);
                 },
                 error: (error: unknown) => this.messages.add({ severity: 'error', summary: 'No se pudo guardar el pedido', detail: this.esConflictoNumeroPedido(error) ? 'El número de pedido ya existe.' : getApiErrorMessage(error) })
